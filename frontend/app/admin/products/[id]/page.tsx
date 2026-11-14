@@ -187,7 +187,7 @@ export default function ProductFormPage() {
         <div className="card space-y-3">
           <h2 className="font-semibold text-gray-900">Mode Penjualan</h2>
           <div className="flex gap-3">
-            {["READY_STOCK", "PRE_ORDER"].map(mode => (
+            {["READY_STOCK", "PREORDER"].map(mode => (
               <button type="button" key={mode} onClick={() => toggleMode(mode)}
                 className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${form.sales_modes.includes(mode) ? "bg-primary-500 text-white border-primary-500" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
                 {mode === "READY_STOCK" ? "Ready Stock" : "Pre-Order"}

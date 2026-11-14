@@ -95,6 +95,24 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Product, error) {
 	return &product, nil
 }
 
+// normalizeSalesModes maps legacy/incorrect values (mis. "PRE_ORDER" dari form
+// lama) ke nilai yang diizinkan database, dan membuang nilai tak dikenal —
+// supaya input lama tidak pernah bikin error 500.
+func normalizeSalesModes(modes []string) []string {
+	normalized := make([]string, 0, len(modes))
+	seen := map[string]bool{}
+	for _, m := range modes {
+		if m == "PRE_ORDER" {
+			m = "PREORDER"
+		}
+		if (m == "READY_STOCK" || m == "PREORDER") && !seen[m] {
+			seen[m] = true
+			normalized = append(normalized, m)
+		}
+	}
+	return normalized
+}
+
 // generateSKU builds a readable SKU from the product name, e.g.
 // "Donat Banana" -> "DONAT-BANANA", adding a numeric suffix if needed.
 func (s *Service) generateSKU(ctx context.Context, name string, excludeID *uuid.UUID) string {
@@ -160,7 +178,7 @@ func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Produc
 		return nil, err
 	}
 
-	for _, mode := range req.SalesModes {
+	for _, mode := range normalizeSalesModes(req.SalesModes) {
 		_, err := tx.ExecContext(ctx, "INSERT INTO product_sales_modes (product_id, mode) VALUES ($1, $2)", id, mode)
 		if err != nil {
 			return nil, err
@@ -208,9 +226,10 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductReq
 		return nil, err
 	}
 
-	if len(req.SalesModes) > 0 {
+	salesModes := normalizeSalesModes(req.SalesModes)
+	if len(salesModes) > 0 {
 		tx.ExecContext(ctx, "DELETE FROM product_sales_modes WHERE product_id = $1", id)
-		for _, mode := range req.SalesModes {
+		for _, mode := range salesModes {
 			tx.ExecContext(ctx, "INSERT INTO product_sales_modes (product_id, mode) VALUES ($1, $2)", id, mode)
 		}
 	}
