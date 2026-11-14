@@ -26,14 +26,14 @@ services:
   backend:
     image: ghcr.io/pudyn/dough-room-co-backend:latest
     pull_policy: always
-    container_name: donutshop-api
+    container_name: test-api
     restart: unless-stopped
     environment:
       DB_HOST: ${DB_HOST:-host.docker.internal}
       DB_PORT: ${DB_PORT:-5432}
-      DB_USER: ${DB_USER:-donutshop}
+      DB_USER: ${DB_USER:-dough}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env}
-      DB_NAME: ${DB_NAME:-donutshop}
+      DB_NAME: ${DB_NAME:-dough}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi di .env (acak, min 32 karakter)}
       JWT_EXPIRY: ${JWT_EXPIRY:-24h}
@@ -43,6 +43,12 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-https://doughroomco.my.id}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
     volumes:
       - uploads:/app/uploads
     expose:
@@ -51,14 +57,16 @@ services:
   frontend:
     image: ghcr.io/pudyn/dough-room-co-frontend:latest
     pull_policy: always
-    container_name: donutshop-web
+    container_name: test-web
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: /api/v1
     ports:
       - "${WEB_PORT:-8081}:80"
     depends_on:
-      - backend
+      backend:
+        # Frontend menunggu backend benar-benar SEHAT (bukan sekadar start)
+        condition: service_healthy
 
 volumes:
   uploads:
