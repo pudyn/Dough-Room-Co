@@ -15,7 +15,8 @@ FROM alpine:3.20
 
 RUN apk --no-cache add ca-certificates tzdata
 
-WORKDIR /root/
+# Folder kerja aplikasi: /app (semua upload tersimpan di /app/uploads)
+WORKDIR /app
 
 COPY --from=builder /app/server .
 
