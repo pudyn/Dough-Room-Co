@@ -57,8 +57,9 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 
 **3. Domain & HTTPS:**
 
-- Default `WEB_PORT=80` → frontend langsung diakses di domain Anda
-- Kalau server sudah punya nginx/Certbot untuk HTTPS: set `WEB_PORT=8080`, lalu arahkan reverse proxy domain ke `127.0.0.1:8080`
+- Default `WEB_PORT=8081` → arahkan reverse proxy nginx/Certbot server Anda ke `127.0.0.1:8081`
+  (port 80/443 tetap dipakai nginx server, contoh blok nginx ada di `nginx/server-domain.conf.example`)
+- Kalau server **tidak** punya nginx sendiri: set `WEB_PORT=80` supaya frontend langsung tampil di domain
 
 **Update versi baru:**
 
