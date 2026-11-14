@@ -219,7 +219,9 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductReq
 	}
 
 	_, err = tx.ExecContext(ctx,
-		`UPDATE products SET category_id=$1, sku=$2, name=$3, description=$4, image_url=$5, selling_price=$6, cost_price=$7, stock_tracking=$8, low_stock_threshold=$9, is_active=$10, updated_at=NOW() WHERE id=$11`,
+		`UPDATE products SET category_id=$1, sku=$2, name=$3, description=$4,
+		 image_url = COALESCE(NULLIF($5, ''), image_url),
+		 selling_price=$6, cost_price=$7, stock_tracking=$8, low_stock_threshold=$9, is_active=$10, updated_at=NOW() WHERE id=$11`,
 		req.CategoryID, sku, req.Name, req.Description, req.ImageURL,
 		req.SellingPrice, req.CostPrice, req.StockTracking, req.LowStockThreshold, isActive, id)
 	if err != nil {
