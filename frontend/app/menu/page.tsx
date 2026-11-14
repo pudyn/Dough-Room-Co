@@ -25,7 +25,7 @@ function MenuContent() {
     staleTime: Infinity,
     retry: false,
     queryFn: async () => {
-      const { data } = await publicApi.get(`/qr/${qrCode}`);
+      const { data } = await publicApi.get(`/public/qr/${qrCode}`);
       return data.data;
     },
   });
