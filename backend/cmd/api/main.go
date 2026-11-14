@@ -229,6 +229,23 @@ func main() {
 				return shared.ErrorResponse(c, fiber.StatusInternalServerError, "Failed", "INTERNAL_ERROR")
 			}
 			return shared.SuccessResponse(c, fiber.StatusOK, "Setting updated", nil)
+		}).
+		Post("/qris-image", middleware.RequireRoles("OWNER", "ADMIN"), func(c *fiber.Ctx) error {
+			file, err := c.FormFile("image")
+			if err != nil {
+				return shared.ValidationError(c, "Image file is required", nil)
+			}
+			if file.Size > 5*1024*1024 {
+				return shared.ValidationError(c, "File size must be less than 5MB", nil)
+			}
+			url, err := storage.Upload(c.Context(), file, "qris")
+			if err != nil {
+				return shared.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to upload image", "INTERNAL_ERROR")
+			}
+			if err := storeSvc.SetSetting(c.Context(), "qris_image_url", url); err != nil {
+				return shared.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to save setting", "INTERNAL_ERROR")
+			}
+			return shared.SuccessResponse(c, fiber.StatusOK, "QRIS image uploaded", fiber.Map{"qris_image_url": url})
 		})
 
 	// Products

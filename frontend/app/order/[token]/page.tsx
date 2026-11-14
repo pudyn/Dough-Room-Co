@@ -35,6 +35,15 @@ export default function OrderTrackingPage() {
     enabled: !!token,
   });
 
+  const { data: storeInfo } = useQuery<{ settings?: Record<string, string> }>({
+    queryKey: ["public-store"],
+    queryFn: async () => {
+      const { data } = await publicApi.get("/public/store");
+      return data.data;
+    },
+  });
+  const qrisImageUrl = storeInfo?.settings?.qris_image_url || "/qris-gopay.png";
+
   const cancelMutation = useMutation({
     mutationFn: async () => { await publicApi.post(`/public/orders/${token}/cancel`); },
     onSuccess: () => { toast.success("Pesanan dibatalkan"); qc.invalidateQueries({ queryKey: ["order-track", token] }); },
@@ -142,24 +151,43 @@ export default function OrderTrackingPage() {
               <span className={clsx("text-xs px-2 py-1 rounded-full font-medium", order.payment.payment_status === "PAID" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700")}>{order.payment.payment_status}</span>
             </div>
 
-            {order.payment.payment_method === "BANK_TRANSFER" && order.payment.payment_status !== "PAID" && order.order_status === "PENDING_PAYMENT" && (
+            {(order.payment.payment_method === "BANK_TRANSFER" || order.payment.payment_method === "QRIS") && order.payment.payment_status !== "PAID" && order.order_status === "PENDING_PAYMENT" && (
               <>
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <p className="text-xs text-blue-700 font-medium mb-1">Transfer ke:</p>
-                  <p className="font-bold text-gray-900">{order.payment.bank_name}</p>
-                  <p className="font-mono font-bold text-lg text-gray-900">{order.payment.account_number}</p>
-                  <p className="text-sm text-gray-600">{order.payment.account_name}</p>
-                  <p className="text-primary-600 font-bold mt-2">{formatIDR(order.payment.amount)}</p>
-                  {order.payment.expired_at && (
-                    <p className="text-xs text-red-500 mt-1">Bayar sebelum: {new Date(order.payment.expired_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</p>
-                  )}
-                </div>
+                {order.payment.payment_method === "BANK_TRANSFER" ? (
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <p className="text-xs text-blue-700 font-medium mb-1">Transfer ke:</p>
+                    <p className="font-bold text-gray-900">{order.payment.bank_name}</p>
+                    <p className="font-mono font-bold text-lg text-gray-900">{order.payment.account_number}</p>
+                    <p className="text-sm text-gray-600">{order.payment.account_name}</p>
+                    <p className="text-primary-600 font-bold mt-2">{formatIDR(order.payment.amount)}</p>
+                    {order.payment.expired_at && (
+                      <p className="text-xs text-red-500 mt-1">Bayar sebelum: {new Date(order.payment.expired_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-blue-50 rounded-lg p-4 text-center">
+                    <p className="text-xs text-blue-700 font-medium">Scan atau simpan QR ini, lalu bayar dengan:</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">GoPay · OVO · DANA · ShopeePay · m-banking</p>
+                    <div className="inline-block bg-white rounded-2xl p-3 shadow-sm border border-blue-100">
+                      <img src={qrisImageUrl} alt="QRIS Doughroom" className="w-56 max-w-full rounded-lg" />
+                    </div>
+                    <p className="text-primary-600 font-bold text-lg mt-3">{formatIDR(order.payment.amount)}</p>
+                    {order.payment.expired_at && (
+                      <p className="text-xs text-red-500 mt-1">Bayar sebelum: {new Date(order.payment.expired_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</p>
+                    )}
+                    <a href={qrisImageUrl} download="QRIS-Doughroom.png"
+                      className="mt-3 inline-flex items-center justify-center gap-1.5 w-full bg-primary-600 hover:bg-primary-700 text-white rounded-xl py-2.5 text-sm font-bold transition-colors">
+                      ⬇ Simpan Gambar QR
+                    </a>
+                    <p className="text-[11px] text-gray-500 mt-2">Dari HP: buka aplikasi e-wallet → <strong>Scan</strong> → pilih gambar QR dari galeri</p>
+                  </div>
+                )}
 
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={uploadProof} />
                 <button onClick={() => fileRef.current?.click()} disabled={uploading}
                   className="w-full border-2 border-dashed border-gray-200 rounded-xl py-3 flex items-center justify-center gap-2 text-sm text-gray-600 hover:border-primary-300 hover:text-primary-600 transition-colors">
                   <Upload size={16} />
-                  {uploading ? "Mengunggah..." : order.payment.proof_url ? "Ganti Bukti Transfer" : "Upload Bukti Transfer"}
+                  {uploading ? "Mengunggah..." : order.payment.proof_url ? "Ganti Bukti Pembayaran" : "Upload Bukti Pembayaran"}
                 </button>
                 {order.payment.proof_url && (
                   <div className="text-center">

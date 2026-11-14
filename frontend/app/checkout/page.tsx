@@ -203,7 +203,8 @@ function CheckoutContent() {
           <h2 className="font-semibold text-gray-900">Pembayaran</h2>
           <div className="space-y-2">
             {[
-              { value: "BANK_TRANSFER", label: "Transfer Bank", desc: "BCA Transfer" },
+              { value: "BANK_TRANSFER", label: "Transfer Bank", desc: "Transfer ke rekening toko" },
+              { value: "QRIS", label: "QRIS (Scan QR)", desc: "GoPay, OVO, DANA, ShopeePay, m-banking" },
               { value: "PAY_AT_COUNTER", label: "Bayar di Kasir", desc: "Bayar saat ambil" },
             ].map(m => (
               <label key={m.value} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.payment_method === m.value ? "border-primary-400 bg-primary-50" : "border-gray-200"}`}>
@@ -234,6 +235,12 @@ function CheckoutContent() {
               </div>
             ))}
             <p className="text-xs text-blue-700 mt-2">Transfer sebesar <strong>{formatIDR(Math.max(0, total))}</strong> dan upload bukti di halaman pesanan. Batas waktu 60 menit.</p>
+          </div>
+        )}
+
+        {form.payment_method === "QRIS" && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <p className="text-xs text-blue-700">Setelah pesanan dibuat, <strong>gambar QR</strong> muncul di halaman pesanan — scan pakai GoPay/OVO/DANA/ShopeePay/m-banking, bayar <strong>{formatIDR(Math.max(0, total))}</strong>, lalu upload bukti bayar. Batas waktu 60 menit.</p>
           </div>
         )}
       </div>

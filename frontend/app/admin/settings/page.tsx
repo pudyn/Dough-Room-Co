@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Save, Plus, Trash2 } from "lucide-react";
+import { Save, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 type BankAccount = { id: string; bank_name: string; account_number: string; account_holder: string; is_active: boolean };
@@ -70,6 +70,28 @@ export default function SettingsPage() {
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => { await api.put(`/bank-accounts/${id}`, { is_active: active }); },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bank-accounts"] }),
   });
+
+  const qrisInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingQris, setUploadingQris] = useState(false);
+
+  async function uploadQris(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingQris(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const { data } = await api.post("/store/qris-image", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setSettings(s => ({ ...s, qris_image_url: data.data.qris_image_url }));
+      qc.invalidateQueries({ queryKey: ["store-settings-admin"] });
+      toast.success("Gambar QR tersimpan");
+    } catch {
+      toast.error("Gagal upload gambar QR");
+    } finally {
+      setUploadingQris(false);
+      e.target.value = "";
+    }
+  }
 
   const fields = [
     { key: "store_name", label: "Nama Toko", type: "text" },
@@ -153,6 +175,27 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* QRIS statis (GoPay merchant) */}
+      <div className="card space-y-4">
+        <h2 className="font-semibold text-gray-900">QRIS (GoPay) — QR Statis</h2>
+        <p className="text-xs text-gray-500">
+          Gambar QR ini akan muncul di halaman pesanan pelanggan saat mereka memilih pembayaran <strong>QRIS</strong>.
+          Setelah scan & bayar, pelanggan upload bukti — Anda verifikasi dari menu Pesanan seperti biasa.
+        </p>
+        {settings.qris_image_url ? (
+          <img src={settings.qris_image_url} alt="QRIS" className="w-56 mx-auto rounded-xl border bg-white p-2" />
+        ) : (
+          <div className="text-center space-y-2">
+            <img src="/qris-gopay.png" alt="QRIS bawaan" className="w-56 mx-auto rounded-xl border bg-white p-2" />
+            <p className="text-xs text-gray-400">Sedang memakai gambar QR bawaan (qris-gopay.png). Upload di bawah untuk mengganti.</p>
+          </div>
+        )}
+        <input ref={qrisInputRef} type="file" accept="image/*" className="hidden" onChange={uploadQris} />
+        <button onClick={() => qrisInputRef.current?.click()} disabled={uploadingQris} className="btn-secondary flex items-center gap-2">
+          <Upload size={16} /> {uploadingQris ? "Mengunggah..." : settings.qris_image_url ? "Ganti Gambar QR" : "Upload Gambar QR"}
+        </button>
       </div>
     </div>
   );
