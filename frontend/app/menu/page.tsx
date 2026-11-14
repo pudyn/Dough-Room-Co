@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { publicApi, formatIDR } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
-import { ShoppingCart, Search, Plus, Minus, MapPin, Phone, Star, X } from "lucide-react";
+import { ShoppingCart, Search, Plus, Minus, MapPin, Phone, Star, X, Instagram, AtSign } from "lucide-react";
 import clsx from "clsx";
 import type { Product, Review } from "@/types";
 
@@ -17,6 +17,18 @@ function MenuContent() {
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [detail, setDetail] = useState<Product | null>(null);
+
+  useQuery({
+    queryKey: ["qr-track", qrCode],
+    enabled: !!qrCode,
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: async () => {
+      const { data } = await publicApi.get(`/qr/${qrCode}`);
+      return data.data;
+    },
+  });
 
   const { data: storeData } = useQuery({
     queryKey: ["store-settings"],
@@ -89,6 +101,25 @@ function MenuContent() {
                   <p className="text-primary-300 text-xs">{settings.store_address}</p>
                 </div>
               )}
+              <div className="flex items-center gap-2 mt-1.5">
+                <a
+                  href="https://instagram.com/doughroom.co"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors"
+                >
+                  <Instagram size={13} /> @doughroom.co
+                </a>
+                <span className="text-primary-500">•</span>
+                <a
+                  href="https://www.threads.net/@doughroom.co"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors"
+                >
+                  <AtSign size={13} /> Threads
+                </a>
+              </div>
             </div>
           </div>
 

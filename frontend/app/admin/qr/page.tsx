@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { QrCode, Download, ExternalLink, Plus, X, Trash2 } from "lucide-react";
+import { QrCode, Download, ExternalLink, Plus, X, Trash2, MousePointerClick } from "lucide-react";
 import { toast } from "sonner";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
-type QRCode = { id: string; code: string; label: string; url: string; is_active: boolean; created_at: string };
+type QRCode = { id: string; code: string; name: string; url: string; target_type: string; is_active: boolean; click_count: number; created_at: string };
 
 export default function QRPage() {
   const qc = useQueryClient();
@@ -45,10 +45,10 @@ export default function QRPage() {
     onError: () => toast.error("Gagal menghapus QR Code"),
   });
 
-  function downloadQR(url: string, label: string) {
+  function downloadQR(url: string, name: string) {
     const link = document.createElement("a");
     link.href = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`;
-    link.download = `qr-${label}.png`;
+    link.download = `qr-${name}.png`;
     link.target = "_blank";
     link.click();
   }
@@ -82,19 +82,27 @@ export default function QRPage() {
             <div className="bg-white border border-gray-200 rounded-xl p-3 mx-auto w-fit mb-3">
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr.url)}`}
-                alt={qr.label}
+                alt={qr.name}
                 className="w-32 h-32"
               />
             </div>
-            <p className="font-semibold text-gray-900">{qr.label}</p>
+            <p className="font-semibold text-gray-900">{qr.name}</p>
             <p className="text-xs text-gray-400 font-mono mt-0.5">{qr.code}</p>
             <p className="text-xs text-gray-400 mt-1 break-all px-2">{qr.url}</p>
+            <div className="mt-2 flex items-center justify-center gap-2">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                {qr.target_type === "CATALOG" ? "Catalog" : "Store"}
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200 flex items-center gap-1">
+                <MousePointerClick size={12} /> {qr.click_count} klik
+              </span>
+            </div>
 
             <div className="flex gap-2 mt-3 justify-center">
               <button onClick={() => window.open(qr.url, "_blank")} className="btn-secondary text-xs flex items-center gap-1">
                 <ExternalLink size={12} /> Buka
               </button>
-              <button onClick={() => downloadQR(qr.url, qr.label)} className="btn-secondary text-xs flex items-center gap-1">
+              <button onClick={() => downloadQR(qr.url, qr.name)} className="btn-secondary text-xs flex items-center gap-1">
                 <Download size={12} /> Download
               </button>
               <button onClick={() => setDeleteTarget(qr)} className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-colors">
@@ -153,7 +161,7 @@ export default function QRPage() {
       <ConfirmModal
         open={!!deleteTarget}
         title="Hapus QR Code"
-        message={`QR Code "${deleteTarget?.label}" akan dihapus. Lanjutkan?`}
+        message={`QR Code "${deleteTarget?.name}" akan dihapus. Lanjutkan?`}
         confirmLabel="Hapus"
         loading={deleteMutation.isPending}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}

@@ -24,6 +24,7 @@ type QRCode struct {
 	Code       string    `json:"code" db:"code"`
 	TargetType string    `json:"target_type" db:"target_type"`
 	IsActive   bool      `json:"is_active" db:"is_active"`
+	ClickCount int       `json:"click_count" db:"click_count"`
 	URL        string    `json:"url"`
 	CreatedAt  string    `json:"created_at" db:"created_at"`
 }
@@ -31,7 +32,7 @@ type QRCode struct {
 func (s *Service) List(ctx context.Context) ([]QRCode, error) {
 	var codes []QRCode
 	err := s.db.SelectContext(ctx, &codes,
-		"SELECT id, name, code, target_type, is_active, created_at FROM qr_codes WHERE is_active = TRUE ORDER BY created_at DESC")
+		"SELECT id, name, code, target_type, is_active, click_count, created_at FROM qr_codes WHERE is_active = TRUE ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -60,10 +61,14 @@ func (s *Service) Create(ctx context.Context, req CreateQRRequest) (*QRCode, err
 func (s *Service) Resolve(ctx context.Context, code string) (*QRCode, error) {
 	var qrCode QRCode
 	err := s.db.GetContext(ctx, &qrCode,
-		"SELECT id, name, code, target_type, is_active, created_at FROM qr_codes WHERE code = $1 AND is_active = TRUE", code)
+		"SELECT id, name, code, target_type, is_active, click_count, created_at FROM qr_codes WHERE code = $1 AND is_active = TRUE", code)
 	if err != nil {
 		return nil, err
 	}
+	if _, err := s.db.ExecContext(ctx, "UPDATE qr_codes SET click_count = click_count + 1 WHERE id = $1", qrCode.ID); err != nil {
+		return nil, err
+	}
+	qrCode.ClickCount++
 	qrCode.URL = s.baseURL + "/menu?qr=" + qrCode.Code
 	return &qrCode, nil
 }
