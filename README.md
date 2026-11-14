@@ -34,9 +34,9 @@ Access:
 
 ## Deploy ke Server (Production)
 
-Untuk server/VM dengan **PostgreSQL jalan langsung di server** (bukan di dalam Docker), pakai `docker-compose.prod.yml` — Docker hanya menjalankan frontend + backend. File `docker-compose.yml` tetap khusus untuk lokal.
+Untuk server/VM dengan **PostgreSQL jalan langsung di server** (bukan di dalam Docker). Image frontend & backend **di-pull otomatis dari GitHub Container Registry (ghcr.io)** — server tidak perlu build apa pun. File `docker-compose.yml` tetap khusus untuk lokal.
 
-**1. Di server** (butuh Docker + Docker Compose plugin):
+**1. Di server** (cukup butuh Docker + Docker Compose plugin):
 
 ```bash
 git clone https://github.com/pudyn/Dough-Room-Co.git
@@ -45,7 +45,8 @@ cd Dough-Room-Co
 cp .env.example .env
 nano .env     # isi DB_PASSWORD, JWT_SECRET (acak, min 32 char), cek FRONTEND_URL & WEB_PORT
 
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 **2. Izinkan Docker terhubung ke PostgreSQL server** (sekali saja):
@@ -61,12 +62,15 @@ docker compose -f docker-compose.prod.yml up -d --build
   (port 80/443 tetap dipakai nginx server, contoh blok nginx ada di `nginx/server-domain.conf.example`)
 - Kalau server **tidak** punya nginx sendiri: set `WEB_PORT=80` supaya frontend langsung tampil di domain
 
-**Update versi baru:**
+**Update versi baru** (tunggu GitHub Actions selesai build dulu — cek tab Actions):
 
 ```bash
 git pull
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
+
+Mau pin versi tertentu / rollback? Ganti `:latest` di `docker-compose.prod.yml` dengan hash commit, contoh `ghcr.io/pudyn/dough-room-co-backend:9dc23a2`.
 
 ## Development
 

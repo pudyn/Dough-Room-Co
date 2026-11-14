@@ -1,34 +1,43 @@
 # ============================================================
 # Docker Compose untuk SERVER (production)
 #
-# - Frontend + Backend saja. Database TIDAK di dalam Docker —
-#   backend terhubung ke PostgreSQL yang sudah jalan di server/VM.
+# - Image DI-PULL dari GitHub Container Registry (ghcr.io) — server
+#   tidak build apa pun (cepat & ringan, tidak butuh Go/Node di server).
+# - Image otomatis di-build & di-push oleh GitHub Actions setiap kali
+#   ada push ke branch main (lihat .github/workflows/docker-publish.yml).
+# - Database TIDAK di dalam Docker — backend terhubung ke PostgreSQL
+#   yang sudah jalan di server/VM.
 # - Jangan pakai file ini untuk lokal; lokal tetap pakai docker-compose.yml.
 #
 # Cara pakai (di server):
 #   cp .env.example .env
-#   nano .env                     # isi DB_PASSWORD, JWT_SECRET, FRONTEND_URL
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   nano .env                  # isi DB_PASSWORD, JWT_SECRET, FRONTEND_URL
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
 #
-#   (.env dibaca otomatis oleh docker compose — tidak perlu flag tambahan)
+# Update ke versi terbaru (tunggu GitHub Actions selesai build dulu):
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Mau pin ke versi tertentu (rollback)? Ganti :latest dengan hash commit,
+# contoh: ghcr.io/pudyn/dough-room-co-backend:9dc23a2
 # ============================================================
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/pudyn/dough-room-co-backend:latest
+    pull_policy: always
     container_name: donutshop-api
     restart: unless-stopped
     environment:
       # DB_HOST host.docker.internal = otomatis menunjuk ke server tempat Docker jalan.
-      # Kalau PostgreSQL ada di mesin LAIN, isi IP/hostname mesin itu di .env.production.
+      # Kalau PostgreSQL ada di mesin LAIN, isi IP/hostname mesin itu di .env.
       DB_HOST: ${DB_HOST:-host.docker.internal}
       DB_PORT: ${DB_PORT:-5432}
       DB_USER: ${DB_USER:-donutshop}
-      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env.production}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env}
       DB_NAME: ${DB_NAME:-donutshop}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi di .env.production (acak, min 32 karakter)}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi di .env (acak, min 32 karakter)}
       JWT_EXPIRY: ${JWT_EXPIRY:-24h}
       REFRESH_TOKEN_EXPIRY: ${REFRESH_TOKEN_EXPIRY:-336h}
       SERVER_PORT: 8080
@@ -47,9 +56,8 @@ services:
     #   - "127.0.0.1:8080:8080"
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/pudyn/dough-room-co-frontend:latest
+    pull_policy: always
     container_name: donutshop-web
     restart: unless-stopped
     environment:
