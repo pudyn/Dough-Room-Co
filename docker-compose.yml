@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: donutshop-db
+    environment:
+      POSTGRES_USER: donutshop
+      POSTGRES_PASSWORD: donutshop_secret
+      POSTGRES_DB: donutshop
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U donutshop"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: donutshop-api
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: donutshop
+      DB_PASSWORD: donutshop_secret
+      DB_NAME: donutshop
+      DB_SSLMODE: disable
+      JWT_SECRET: change-me-in-production
+      JWT_EXPIRY: 15m
+      REFRESH_TOKEN_EXPIRY: 168h
+      SERVER_PORT: 8080
+      TIMEZONE: Asia/Jakarta
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads:/root/uploads
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: donutshop-web
+    environment:
+      NEXT_PUBLIC_API_URL: /api/v1
+    ports:
+      - "80:80"
+    restart: on-failure
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  uploads:

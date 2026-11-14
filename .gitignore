@@ -1,0 +1,24 @@
+# ==== Environment & secrets (JANGAN di-commit) ====
+.env
+.env.*
+!.env.example
+
+# ==== Node / Next.js ====
+node_modules/
+.next/
+out/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ==== Go build artifacts ====
+backend/server
+backend/uploads/
+uploads/
+
+# ==== OS / editor ====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

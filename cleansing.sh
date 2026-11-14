@@ -1,0 +1,1 @@
+docker exec -i pos-db psql -U posuser -d posdb < scripts/clean_transactions.sql
