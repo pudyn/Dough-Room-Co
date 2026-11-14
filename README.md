@@ -42,10 +42,10 @@ Untuk server/VM dengan **PostgreSQL jalan langsung di server** (bukan di dalam D
 git clone https://github.com/pudyn/Dough-Room-Co.git
 cd Dough-Room-Co
 
-cp .env.production.example .env.production
-nano .env.production     # isi DB_PASSWORD, JWT_SECRET (acak, min 32 char), FRONTEND_URL
+cp .env.example .env
+nano .env     # isi DB_PASSWORD, JWT_SECRET (acak, min 32 char), cek FRONTEND_URL & WEB_PORT
 
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 **2. Izinkan Docker terhubung ke PostgreSQL server** (sekali saja):
@@ -65,7 +65,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 
 ```bash
 git pull
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ## Development

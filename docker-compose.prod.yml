@@ -6,9 +6,11 @@
 # - Jangan pakai file ini untuk lokal; lokal tetap pakai docker-compose.yml.
 #
 # Cara pakai (di server):
-#   cp .env.production.example .env.production
-#   nano .env.production          # isi DB_PASSWORD, JWT_SECRET, dll
-#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#   cp .env.example .env
+#   nano .env                     # isi DB_PASSWORD, JWT_SECRET, FRONTEND_URL
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+#   (.env dibaca otomatis oleh docker compose — tidak perlu flag tambahan)
 # ============================================================
 services:
   backend:

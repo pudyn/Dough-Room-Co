@@ -1,9 +1,7 @@
 # ==== Environment & secrets (JANGAN di-commit) ====
 .env
 .env.*
-.env.production
 !.env.example
-!.env.production.example
 
 # ==== Node / Next.js ====
 node_modules/
