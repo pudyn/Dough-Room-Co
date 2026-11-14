@@ -1,17 +1,16 @@
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- UUID default: gen_random_uuid() — bawaan PostgreSQL 13+ (butuh PG 13 atau lebih baru)
 
 -- =====================
 -- USERS & ROLES
 -- =====================
 CREATE TABLE IF NOT EXISTS roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(50) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
@@ -30,7 +29,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
 -- CATEGORIES
 -- =====================
 CREATE TABLE IF NOT EXISTS categories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -42,7 +41,7 @@ CREATE TABLE IF NOT EXISTS categories (
 -- PRODUCTS
 -- =====================
 CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     category_id UUID REFERENCES categories(id),
     sku VARCHAR(100) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
@@ -68,7 +67,7 @@ CREATE TABLE IF NOT EXISTS product_sales_modes (
 -- CUSTOMERS
 -- =====================
 CREATE TABLE IF NOT EXISTS customers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
     email VARCHAR(255),
@@ -79,7 +78,7 @@ CREATE TABLE IF NOT EXISTS customers (
 -- PREORDER PERIODS
 -- =====================
 CREATE TABLE IF NOT EXISTS preorder_periods (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     start_at TIMESTAMPTZ NOT NULL,
@@ -93,7 +92,7 @@ CREATE TABLE IF NOT EXISTS preorder_periods (
 );
 
 CREATE TABLE IF NOT EXISTS preorder_product_quotas (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     preorder_period_id UUID NOT NULL REFERENCES preorder_periods(id),
     product_id UUID NOT NULL REFERENCES products(id),
     quota INTEGER NOT NULL CHECK (quota > 0),
@@ -106,7 +105,7 @@ CREATE TABLE IF NOT EXISTS preorder_product_quotas (
 -- ORDERS
 -- =====================
 CREATE TABLE IF NOT EXISTS orders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_number VARCHAR(50) NOT NULL UNIQUE,
     customer_id UUID REFERENCES customers(id),
     source VARCHAR(20) NOT NULL CHECK (source IN ('POS', 'QR_STORE', 'QR_CATALOG', 'ADMIN')),
@@ -135,7 +134,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_access_token ON orders(access_token);
 
 CREATE TABLE IF NOT EXISTS order_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID NOT NULL REFERENCES orders(id),
     product_id UUID NOT NULL REFERENCES products(id),
     product_name VARCHAR(255) NOT NULL,
@@ -147,7 +146,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 CREATE TABLE IF NOT EXISTS order_status_histories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID NOT NULL REFERENCES orders(id),
     old_status VARCHAR(30),
     new_status VARCHAR(30) NOT NULL,
@@ -160,7 +159,7 @@ CREATE TABLE IF NOT EXISTS order_status_histories (
 -- PAYMENTS
 -- =====================
 CREATE TABLE IF NOT EXISTS payment_bank_accounts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     bank_name VARCHAR(100) NOT NULL,
     account_number VARCHAR(50) NOT NULL,
     account_holder VARCHAR(255) NOT NULL,
@@ -170,7 +169,7 @@ CREATE TABLE IF NOT EXISTS payment_bank_accounts (
 );
 
 CREATE TABLE IF NOT EXISTS payments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID NOT NULL REFERENCES orders(id),
     payment_number VARCHAR(50) NOT NULL UNIQUE,
     method VARCHAR(30) NOT NULL CHECK (method IN ('CASH', 'QRIS', 'BANK_TRANSFER', 'PAY_AT_COUNTER')),
@@ -190,7 +189,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 
 CREATE TABLE IF NOT EXISTS payment_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     payment_id UUID NOT NULL REFERENCES payments(id),
     event_type VARCHAR(50) NOT NULL,
     provider_event_id VARCHAR(255),
@@ -205,7 +204,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_events_provider_event_id ON paymen
 -- INVENTORY
 -- =====================
 CREATE TABLE IF NOT EXISTS stock_movements (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL REFERENCES products(id),
     movement_type VARCHAR(20) NOT NULL CHECK (movement_type IN ('INITIAL', 'PURCHASE', 'SALE', 'RESERVATION', 'RELEASE', 'ADJUSTMENT', 'WASTE', 'RETURN')),
     quantity INTEGER NOT NULL,
@@ -222,7 +221,7 @@ CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements(pro
 -- POS
 -- =====================
 CREATE TABLE IF NOT EXISTS cash_registers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     opening_balance BIGINT NOT NULL DEFAULT 0,
     closing_balance BIGINT,
@@ -234,7 +233,7 @@ CREATE TABLE IF NOT EXISTS cash_registers (
 );
 
 CREATE TABLE IF NOT EXISTS cash_transactions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cash_register_id UUID NOT NULL REFERENCES cash_registers(id),
     transaction_type VARCHAR(20) NOT NULL CHECK (transaction_type IN ('SALE', 'REFUND', 'ADJUSTMENT', 'OPENING', 'CLOSING')),
     amount BIGINT NOT NULL,
@@ -248,7 +247,7 @@ CREATE TABLE IF NOT EXISTS cash_transactions (
 -- QR CODES
 -- =====================
 CREATE TABLE IF NOT EXISTS qr_codes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     code VARCHAR(100) NOT NULL UNIQUE,
     target_type VARCHAR(20) NOT NULL CHECK (target_type IN ('STORE', 'CATALOG')),
@@ -260,7 +259,7 @@ CREATE TABLE IF NOT EXISTS qr_codes (
 -- PRODUCTION
 -- =====================
 CREATE TABLE IF NOT EXISTS production_batches (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     batch_number VARCHAR(50) NOT NULL UNIQUE,
     production_date DATE NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PLANNED' CHECK (status IN ('PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
@@ -270,7 +269,7 @@ CREATE TABLE IF NOT EXISTS production_batches (
 );
 
 CREATE TABLE IF NOT EXISTS production_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     production_batch_id UUID NOT NULL REFERENCES production_batches(id),
     product_id UUID NOT NULL REFERENCES products(id),
     planned_quantity INTEGER NOT NULL DEFAULT 0,
@@ -282,7 +281,7 @@ CREATE TABLE IF NOT EXISTS production_items (
 -- AUDIT LOG
 -- =====================
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id),
     action VARCHAR(100) NOT NULL,
     entity_type VARCHAR(100) NOT NULL,
@@ -310,7 +309,7 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 -- REFRESH TOKENS
 -- =====================
 CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,
@@ -330,10 +329,10 @@ CREATE TABLE IF NOT EXISTS store_settings (
 -- SEED DATA
 -- =====================
 INSERT INTO roles (id, name) VALUES
-    (uuid_generate_v4(), 'OWNER'),
-    (uuid_generate_v4(), 'ADMIN'),
-    (uuid_generate_v4(), 'CASHIER'),
-    (uuid_generate_v4(), 'KITCHEN')
+    (gen_random_uuid(), 'OWNER'),
+    (gen_random_uuid(), 'ADMIN'),
+    (gen_random_uuid(), 'CASHIER'),
+    (gen_random_uuid(), 'KITCHEN')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO payment_bank_accounts (bank_name, account_number, account_holder, is_active) VALUES
@@ -361,7 +360,7 @@ ON CONFLICT DO NOTHING;
 -- PROMO CODES
 -- =====================
 CREATE TABLE IF NOT EXISTS promo_codes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -379,7 +378,7 @@ CREATE TABLE IF NOT EXISTS promo_codes (
 );
 
 CREATE TABLE IF NOT EXISTS promo_usages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     promo_code_id UUID NOT NULL REFERENCES promo_codes(id),
     order_id UUID NOT NULL REFERENCES orders(id),
     discount_amount BIGINT NOT NULL,

@@ -5,7 +5,7 @@
 -- have them from a fresh 000001 run.
 
 CREATE TABLE IF NOT EXISTS promo_codes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS promo_codes (
 );
 
 CREATE TABLE IF NOT EXISTS promo_usages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     promo_code_id UUID NOT NULL REFERENCES promo_codes(id),
     order_id UUID NOT NULL REFERENCES orders(id),
     discount_amount BIGINT NOT NULL,

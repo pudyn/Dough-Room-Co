@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS reviews (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_name VARCHAR(255) NOT NULL DEFAULT '',
     rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 
 CREATE TABLE IF NOT EXISTS feedbacks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_name VARCHAR(255) NOT NULL DEFAULT '',
     contact VARCHAR(255),
     message TEXT NOT NULL,
