@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { publicApi, formatIDR } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
-import { ShoppingCart, Search, Plus, Minus, MapPin, Phone, Star } from "lucide-react";
+import { ShoppingCart, Search, Plus, Minus, MapPin, Phone, Star, X } from "lucide-react";
 import clsx from "clsx";
 import type { Product, Review } from "@/types";
 
@@ -16,6 +16,7 @@ function MenuContent() {
   const { items, addItem, updateQty } = useCart();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [detail, setDetail] = useState<Product | null>(null);
 
   const { data: storeData } = useQuery({
     queryKey: ["store-settings"],
@@ -162,7 +163,7 @@ function MenuContent() {
                 )}
               >
                 {/* Product Image */}
-                <div className="relative aspect-square bg-gradient-to-br from-cream-100 to-cream-200 overflow-hidden">
+                <div className="relative aspect-square bg-gradient-to-br from-cream-100 to-cream-200 overflow-hidden cursor-pointer" onClick={() => setDetail(p)}>
                   {p.image_url ? (
                     <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
                   ) : (
@@ -197,7 +198,7 @@ function MenuContent() {
 
                 {/* Product Info */}
                 <div className="p-3">
-                  <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{p.name}</h3>
+                  <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem] cursor-pointer" onClick={() => setDetail(p)}>{p.name}</h3>
                   {p.description && (
                     <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{p.description}</p>
                   )}
@@ -281,6 +282,85 @@ function MenuContent() {
           </button>
         </div>
       </div>
+
+      {/* Product detail modal (popup) */}
+      {detail && (() => {
+        const dq = getQty(detail.id);
+        const dOos = detail.stock_tracking && detail.stock_quantity <= 0;
+        return (
+          <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" onClick={() => setDetail(null)}>
+            <div className="absolute inset-0 bg-black/50" />
+            <div
+              className="relative bg-white w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl sm:mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Big image */}
+              <div className="relative aspect-square bg-gradient-to-br from-cream-100 to-cream-200 overflow-hidden rounded-t-3xl sm:rounded-t-3xl">
+                {detail.image_url ? (
+                  <img src={detail.image_url} alt={detail.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-7xl opacity-60">🍩</span>
+                  </div>
+                )}
+                <div className="absolute top-3 left-3 flex flex-col gap-1">
+                  {detail.is_recommended && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] bg-gradient-to-r from-orange-500 to-red-500 text-white px-2 py-0.5 rounded-full font-bold shadow">🔥 HOT</span>
+                  )}
+                  {detail.sales_modes?.includes("PREORDER") && !detail.sales_modes?.includes("READY_STOCK") && (
+                    <span className="text-[10px] bg-purple-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">PRE-ORDER</span>
+                  )}
+                  {dOos && (
+                    <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">HABIS</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setDetail(null)}
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow text-gray-600 hover:bg-white transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Detail */}
+              <div className="p-5 space-y-3 pb-8">
+                <h2 className="font-bold text-lg text-gray-900 leading-snug">{detail.name}</h2>
+                {detail.description && (
+                  <p className="text-sm text-gray-600 whitespace-pre-line">{detail.description}</p>
+                )}
+                <p className="text-primary-700 font-bold text-xl">{formatIDR(detail.selling_price)}</p>
+
+                {dOos ? (
+                  <button disabled className="w-full bg-gray-100 text-gray-400 rounded-2xl py-3.5 font-bold text-sm cursor-not-allowed">
+                    Stok Habis
+                  </button>
+                ) : dq === 0 ? (
+                  <button
+                    onClick={() => addItem({ productId: detail.id, name: detail.name, price: detail.selling_price, imageUrl: detail.image_url ?? undefined, salesModes: detail.sales_modes ?? [] })}
+                    className="w-full bg-primary-600 hover:bg-primary-700 text-white rounded-2xl py-3.5 font-bold text-sm flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all"
+                  >
+                    <Plus size={16} strokeWidth={2.5} /> Tambah ke Keranjang
+                  </button>
+                ) : (
+                  <div className="flex items-center justify-between bg-cream-50 border border-gray-100 rounded-2xl p-2">
+                    <button onClick={() => updateQty(detail.id, -1)} className="w-10 h-10 rounded-xl bg-white border flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all">
+                      <Minus size={16} />
+                    </button>
+                    <span className="font-bold text-gray-900 text-lg">{dq}</span>
+                    <button
+                      onClick={() => { if (detail.stock_tracking && dq >= detail.stock_quantity) return; updateQty(detail.id, 1); }}
+                      disabled={detail.stock_tracking && dq >= detail.stock_quantity}
+                      className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center hover:bg-primary-200 text-primary-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Floating cart */}
       {totalItems > 0 && (

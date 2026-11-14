@@ -161,6 +161,8 @@ func main() {
 		if err != nil {
 			return shared.ErrorResponse(c, fiber.StatusNotFound, "Product not found", "NOT_FOUND")
 		}
+		// Harga modal tidak boleh terlihat pelanggan
+		prod.CostPrice = 0
 		return shared.SuccessResponse(c, fiber.StatusOK, "Product retrieved", prod)
 	})
 

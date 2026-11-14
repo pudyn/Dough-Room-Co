@@ -273,7 +273,9 @@ func (s *Service) Deactivate(ctx context.Context, id uuid.UUID) error {
 }
 
 func (s *Service) ListPublicProducts(ctx context.Context, p shared.PaginationParams, mode, categoryID string) ([]Product, int64, error) {
-	query := `SELECT p.id, p.category_id, c.name as category_name, p.sku, p.name, p.description, p.image_url, p.selling_price, p.stock_quantity, p.stock_tracking, p.is_active, p.is_recommended, p.low_stock_threshold, p.cost_price, p.created_at, p.updated_at
+	// Catatan: cost_price (harga modal) sengaja TIDAK diambil di query publik ini
+	// supaya tidak pernah bocor ke pelanggan.
+	query := `SELECT p.id, p.category_id, c.name as category_name, p.sku, p.name, p.description, p.image_url, p.selling_price, p.stock_quantity, p.stock_tracking, p.is_active, p.is_recommended, p.low_stock_threshold, p.created_at, p.updated_at
 	          FROM products p LEFT JOIN categories c ON p.category_id = c.id
 	          WHERE p.is_active = TRUE`
 	countQuery := "SELECT COUNT(*) FROM products p WHERE p.is_active = TRUE"
