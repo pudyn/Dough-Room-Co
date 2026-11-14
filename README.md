@@ -32,6 +32,41 @@ Access:
 - **Kitchen Display**: http://localhost/kitchen
 - **Customer Menu**: http://localhost/menu
 
+## Deploy ke Server (Production)
+
+Untuk server/VM dengan **PostgreSQL jalan langsung di server** (bukan di dalam Docker), pakai `docker-compose.prod.yml` — Docker hanya menjalankan frontend + backend. File `docker-compose.yml` tetap khusus untuk lokal.
+
+**1. Di server** (butuh Docker + Docker Compose plugin):
+
+```bash
+git clone https://github.com/pudyn/Dough-Room-Co.git
+cd Dough-Room-Co
+
+cp .env.production.example .env.production
+nano .env.production     # isi DB_PASSWORD, JWT_SECRET (acak, min 32 char), FRONTEND_URL
+
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+**2. Izinkan Docker terhubung ke PostgreSQL server** (sekali saja):
+
+- `postgresql.conf` → `listen_addresses = '*'(atau tambahkan IP bridge Docker)
+- `pg_hba.conf` → tambahkan: `host donutshop donutshop 172.16.0.0/12 scram-sha-256`
+- Reload: `sudo systemctl reload postgresql`
+- Pastikan port 5432 **tidak** dibuka ke internet (firewall)
+
+**3. Domain & HTTPS:**
+
+- Default `WEB_PORT=80` → frontend langsung diakses di domain Anda
+- Kalau server sudah punya nginx/Certbot untuk HTTPS: set `WEB_PORT=8080`, lalu arahkan reverse proxy domain ke `127.0.0.1:8080`
+
+**Update versi baru:**
+
+```bash
+git pull
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
 ## Development
 
 ### Backend (Go)

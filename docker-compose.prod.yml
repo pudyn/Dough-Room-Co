@@ -1,0 +1,65 @@
+# ============================================================
+# Docker Compose untuk SERVER (production)
+#
+# - Frontend + Backend saja. Database TIDAK di dalam Docker —
+#   backend terhubung ke PostgreSQL yang sudah jalan di server/VM.
+# - Jangan pakai file ini untuk lokal; lokal tetap pakai docker-compose.yml.
+#
+# Cara pakai (di server):
+#   cp .env.production.example .env.production
+#   nano .env.production          # isi DB_PASSWORD, JWT_SECRET, dll
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# ============================================================
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: donutshop-api
+    restart: unless-stopped
+    environment:
+      # DB_HOST host.docker.internal = otomatis menunjuk ke server tempat Docker jalan.
+      # Kalau PostgreSQL ada di mesin LAIN, isi IP/hostname mesin itu di .env.production.
+      DB_HOST: ${DB_HOST:-host.docker.internal}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-donutshop}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env.production}
+      DB_NAME: ${DB_NAME:-donutshop}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi di .env.production (acak, min 32 karakter)}
+      JWT_EXPIRY: ${JWT_EXPIRY:-24h}
+      REFRESH_TOKEN_EXPIRY: ${REFRESH_TOKEN_EXPIRY:-336h}
+      SERVER_PORT: 8080
+      TIMEZONE: ${TIMEZONE:-Asia/Jakarta}
+      FRONTEND_URL: ${FRONTEND_URL:-https://doughroomco.my.id}
+    extra_hosts:
+      # Membuat host.docker.internal berfungsi di Linux (menunjuk ke host Docker)
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Foto produk, bukti transfer, foto review — permanen, tidak hilang saat update
+      - uploads:/root/uploads
+    expose:
+      - "8080"
+    # Untuk debugging saja (buka sementara jika perlu akses API langsung):
+    # ports:
+    #   - "127.0.0.1:8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: donutshop-web
+    restart: unless-stopped
+    environment:
+      # Relatif — otomatis bekerja di domain apa pun lewat nginx internal container
+      NEXT_PUBLIC_API_URL: /api/v1
+    ports:
+      # WEB_PORT=80   → frontend langsung diakses di domain (default)
+      # WEB_PORT=8080 → kalau server sudah punya nginx/Certbot sendiri untuk HTTPS,
+      #                 arahkan reverse proxy domain ke 127.0.0.1:8080
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  uploads:
