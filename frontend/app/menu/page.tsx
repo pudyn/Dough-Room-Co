@@ -156,14 +156,15 @@ function MenuContent() {
             return (
               <div
                 key={p.id}
+                onClick={() => setDetail(p)}
                 className={clsx(
-                  "bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100/80 transition-all",
+                  "bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100/80 transition-all cursor-pointer",
                   qty > 0 && "ring-2 ring-primary-400 shadow-md",
                   outOfStock && "opacity-50 grayscale"
                 )}
               >
                 {/* Product Image */}
-                <div className="relative aspect-square bg-gradient-to-br from-cream-100 to-cream-200 overflow-hidden cursor-pointer" onClick={() => setDetail(p)}>
+                <div className="relative aspect-square bg-gradient-to-br from-cream-100 to-cream-200 overflow-hidden">
                   {p.image_url ? (
                     <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
                   ) : (
@@ -198,7 +199,7 @@ function MenuContent() {
 
                 {/* Product Info */}
                 <div className="p-3">
-                  <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem] cursor-pointer" onClick={() => setDetail(p)}>{p.name}</h3>
+                  <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{p.name}</h3>
                   {p.description && (
                     <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{p.description}</p>
                   )}
@@ -210,19 +211,19 @@ function MenuContent() {
                       <span className="text-[10px] text-red-400 font-medium">Stok habis</span>
                     ) : qty === 0 ? (
                       <button
-                        onClick={() => addItem({ productId: p.id, name: p.name, price: p.selling_price, imageUrl: p.image_url ?? undefined, salesModes: p.sales_modes ?? [] })}
+                        onClick={(e) => { e.stopPropagation(); addItem({ productId: p.id, name: p.name, price: p.selling_price, imageUrl: p.image_url ?? undefined, salesModes: p.sales_modes ?? [] }); }}
                         className="w-8 h-8 rounded-xl bg-primary-500 hover:bg-primary-600 text-white flex items-center justify-center transition-colors shadow-sm active:scale-95"
                       >
                         <Plus size={16} strokeWidth={2.5} />
                       </button>
                     ) : (
                       <div className="flex items-center gap-1">
-                        <button onClick={() => updateQty(p.id, -1)} className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95 transition-all">
+                        <button onClick={(e) => { e.stopPropagation(); updateQty(p.id, -1); }} className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95 transition-all">
                           <Minus size={13} />
                         </button>
                         <span className="font-bold text-gray-900 w-5 text-center text-sm">{qty}</span>
                         <button
-                          onClick={() => { if (p.stock_tracking && qty >= p.stock_quantity) return; updateQty(p.id, 1); }}
+                          onClick={(e) => { e.stopPropagation(); if (p.stock_tracking && qty >= p.stock_quantity) return; updateQty(p.id, 1); }}
                           disabled={p.stock_tracking && qty >= p.stock_quantity}
                           className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center hover:bg-primary-200 text-primary-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
                         >
