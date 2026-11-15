@@ -131,7 +131,7 @@ export default function SettingsPage() {
 
         {showBankForm && (
           <div className="bg-gray-50 rounded-xl p-4 space-y-3 border">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="label text-xs">Nama Bank *</label>
                 <input className="input text-sm" value={bankForm.bank_name} onChange={e => setBankForm(f => ({ ...f, bank_name: e.target.value }))} placeholder="BCA" />
@@ -140,7 +140,7 @@ export default function SettingsPage() {
                 <label className="label text-xs">No. Rekening *</label>
                 <input className="input text-sm font-mono" value={bankForm.account_number} onChange={e => setBankForm(f => ({ ...f, account_number: e.target.value }))} />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <label className="label text-xs">Nama Pemilik *</label>
                 <input className="input text-sm" value={bankForm.account_holder} onChange={e => setBankForm(f => ({ ...f, account_holder: e.target.value }))} />
               </div>

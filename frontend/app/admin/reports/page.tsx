@@ -87,7 +87,7 @@ export default function ReportsPage() {
         <div className="space-y-4">
           {/* Summary cards */}
           {salesData?.summary && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: "Total Penjualan", value: formatIDR(salesData.summary.total_revenue) },
                 { label: "Total Transaksi", value: salesData.summary.total_orders },

@@ -66,13 +66,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Penjualan Hari Ini" value={formatIDR(summary?.today_revenue ?? 0)} icon={TrendingUp} color="bg-primary-500" />
         <StatCard label="Keuntungan Hari Ini" value={formatIDR(summary?.today_profit ?? 0)} icon={Wallet} color="bg-emerald-500" />
         <StatCard label="Modal Hari Ini" value={formatIDR(summary?.today_cost ?? 0)} icon={ShoppingCart} color="bg-orange-500" />
         <StatCard label="Transaksi" value={summary?.today_transactions ?? 0} icon={ShoppingCart} color="bg-blue-500" />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Menunggu Bayar" value={summary?.pending_payment ?? 0} icon={Clock} color="bg-yellow-500" />
         <StatCard label="Diproses" value={summary?.processing ?? 0} icon={ShoppingCart} color="bg-indigo-500" />
         <StatCard label="Siap Ambil" value={summary?.ready_for_pickup ?? 0} icon={CheckCircle2} color="bg-green-500" />

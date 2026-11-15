@@ -269,7 +269,7 @@ export default function PromosPage() {
               <button onClick={closeForm}><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label">Kode</label>
                   <input className="input" required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="PROMO50" />
@@ -283,7 +283,7 @@ export default function PromosPage() {
                 <label className="label">Deskripsi</label>
                 <input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label">Tipe Diskon</label>
                   <select className="input" value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value as "PERCENTAGE" | "FIXED" })}>
@@ -296,7 +296,7 @@ export default function PromosPage() {
                   <input className="input" type="number" required min={1} value={form.discount_value || ""} onChange={(e) => setForm({ ...form, discount_value: Number(e.target.value) })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label">Min. Order (Rp)</label>
                   <input className="input" type="number" min={0} value={form.min_order || ""} onChange={(e) => setForm({ ...form, min_order: Number(e.target.value) })} />
@@ -310,7 +310,7 @@ export default function PromosPage() {
                 <label className="label">Batas Penggunaan</label>
                 <input className="input" type="number" min={0} value={form.usage_limit ?? ""} onChange={(e) => setForm({ ...form, usage_limit: e.target.value ? Number(e.target.value) : null })} placeholder="Tanpa batas" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label">Berlaku Dari</label>
                   <input className="input" type="datetime-local" value={form.valid_from} onChange={(e) => setForm({ ...form, valid_from: e.target.value })} />

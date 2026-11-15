@@ -81,8 +81,8 @@ export default function PreordersPage() {
       {showForm && (
         <div className="card space-y-4">
           <h2 className="font-semibold text-gray-900">Periode Baru</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="col-span-1 sm:col-span-2">
               <label className="label">Nama Periode *</label>
               <input className="input" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Contoh: Pre-Order Lebaran 2025" />
             </div>
@@ -94,7 +94,7 @@ export default function PreordersPage() {
               <label className="label">Ditutup *</label>
               <input className="input" type="datetime-local" required value={form.close_at} onChange={e => setForm(f => ({ ...f, close_at: e.target.value }))} />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="label">Tanggal Produksi *</label>
               <input className="input" type="date" required value={form.production_date} onChange={e => setForm(f => ({ ...f, production_date: e.target.value }))} />
             </div>
