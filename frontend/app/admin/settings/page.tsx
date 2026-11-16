@@ -3,14 +3,82 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Save, Plus, Trash2, Upload } from "lucide-react";
+import { Save, Plus, Trash2, Upload, Printer, Download, Wifi, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 type BankAccount = { id: string; bank_name: string; account_number: string; account_holder: string; is_active: boolean };
 type Settings = Record<string, string>;
 
+type PrinterStatus = { ok: boolean; printer: string; printers: string[] } | null;
+
 export default function SettingsPage() {
   const qc = useQueryClient();
+  const [printerAgentUrl, setPrinterAgentUrl] = useState("");
+  const [printerStatus, setPrinterStatus] = useState<PrinterStatus>(null);
+  const [printerChecking, setPrinterChecking] = useState(false);
+
+  // Load saved printer agent URL
+  useEffect(() => {
+    try { setPrinterAgentUrl(localStorage.getItem("printer_agent_url") || ""); } catch {}
+  }, []);
+
+  async function checkPrinter() {
+    setPrinterChecking(true);
+    const url = printerAgentUrl || "http://127.0.0.1:17123";
+    try {
+      const res = await fetch(`${url}/status`, { method: "GET", signal: AbortSignal.timeout(3000) });
+      const data = await res.json();
+      setPrinterStatus(data);
+      toast.success(`Printer agent terhubung — ${data.printer || "no default"}`);
+    } catch {
+      setPrinterStatus(null);
+      toast.error("Printer agent tidak terjangkau");
+    } finally {
+      setPrinterChecking(false);
+    }
+  }
+
+  function savePrinterUrl() {
+    try {
+      if (printerAgentUrl) {
+        localStorage.setItem("printer_agent_url", printerAgentUrl);
+      } else {
+        localStorage.removeItem("printer_agent_url");
+      }
+      toast.success("URL printer agent disimpan");
+    } catch { toast.error("Gagal menyimpan"); }
+  }
+
+  async function testPrint() {
+    const url = printerAgentUrl || "http://127.0.0.1:17123";
+    const init = [0x1B, 0x40];
+    const center = [0x1B, 0x61, 0x01, 0x1B, 0x45, 0x01, 0x1D, 0x21, 0x11];
+    const normal = [0x1D, 0x21, 0x00, 0x1B, 0x45, 0x00];
+    const feed = [0x1B, 0x64, 0x04, 0x1D, 0x56, 0x42, 0x00];
+    const enc = new TextEncoder();
+    const bytes = new Uint8Array([
+      ...init, ...center,
+      ...enc.encode("TEST PRINT\n"),
+      ...normal,
+      ...enc.encode("Printer OK!\n"),
+      ...enc.encode(new Date().toLocaleString("id-ID") + "\n"),
+      ...feed,
+    ]);
+    let binary = "";
+    for (const b of bytes) binary += String.fromCharCode(b);
+    try {
+      const res = await fetch(`${url}/print`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: btoa(binary) }),
+      });
+      if (res.ok) toast.success("Test print terkirim!");
+      else toast.error("Print gagal");
+    } catch {
+      toast.error("Printer agent tidak terjangkau");
+    }
+  }
+
   const [settings, setSettings] = useState<Settings>({
     store_name: "",
     store_address: "",
@@ -196,6 +264,94 @@ export default function SettingsPage() {
         <button onClick={() => qrisInputRef.current?.click()} disabled={uploadingQris} className="btn-secondary flex items-center gap-2">
           <Upload size={16} /> {uploadingQris ? "Mengunggah..." : settings.qris_image_url ? "Ganti Gambar QR" : "Upload Gambar QR"}
         </button>
+      </div>
+
+      {/* Printer Thermal */}
+      <div className="card space-y-4">
+        <div className="flex items-center gap-2">
+          <Printer size={20} className="text-gray-700" />
+          <h2 className="font-semibold text-gray-900">Printer Thermal</h2>
+        </div>
+        <p className="text-xs text-gray-500">
+          Printer agent adalah aplikasi kecil yang jalan di PC kasir untuk mencetak struk ESC/POS
+          langsung ke printer thermal (Bluetooth/USB) tanpa dialog cetak browser.
+        </p>
+
+        {/* Download */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
+            <Download size={16} /> Download Printer Agent
+          </h3>
+          <p className="text-xs text-blue-700">
+            Download dan jalankan di setiap PC/laptop kasir. Cukup sekali — setelah itu struk
+            otomatis tercetak setelah checkout.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a href="/printer-agent.exe" download className="btn-primary text-sm flex items-center gap-2 no-underline">
+              <Download size={14} /> printer-agent.exe (Windows)
+            </a>
+          </div>
+          <p className="text-[11px] text-blue-600">
+            Jalankan file, lalu buka{" "}
+            <code className="bg-blue-100 px-1 rounded">http://127.0.0.1:17123/status</code>{" "}
+            di browser untuk cek koneksi.
+          </p>
+        </div>
+
+        {/* Printer URL — untuk tablet/HP di jaringan */}
+        <div className="bg-gray-50 border rounded-xl p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <Wifi size={16} /> Koneksi Printer Agent
+          </h3>
+          <p className="text-xs text-gray-500">
+            Kosongkan untuk PC kasir (default <code className="bg-gray-200 px-1 rounded">localhost:17123</code>).
+            Untuk <strong>tablet/HP di jaringan WiFi yang sama</strong>, isi dengan IP PC kasir yang menjalankan agent,
+            contoh: <code className="bg-gray-200 px-1 rounded">http://192.168.1.10:17123</code>
+          </p>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1 font-mono text-sm"
+              placeholder="http://192.168.1.10:17123"
+              value={printerAgentUrl}
+              onChange={e => setPrinterAgentUrl(e.target.value)}
+            />
+            <button onClick={savePrinterUrl} className="btn-secondary text-sm whitespace-nowrap">
+              <Save size={14} />
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={checkPrinter} disabled={printerChecking}
+              className="btn-secondary text-sm flex items-center gap-2">
+              {printerChecking ? "Mengecek..." : "Cek Koneksi"}
+            </button>
+            <button onClick={testPrint} className="btn-secondary text-sm flex items-center gap-2">
+              <Printer size={14} /> Test Print
+            </button>
+          </div>
+
+          {printerStatus && (
+            <div className="bg-white border rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                {printerStatus.ok ? (
+                  <><CheckCircle2 size={16} className="text-green-500" /> <span className="text-green-700 font-medium">Terhubung</span></>
+                ) : (
+                  <><XCircle size={16} className="text-red-500" /> <span className="text-red-700 font-medium">Tidak terhubung</span></>
+                )}
+              </div>
+              {printerStatus.printer && (
+                <p className="text-xs text-gray-600">Printer default: <strong>{printerStatus.printer}</strong></p>
+              )}
+              {printerStatus.printers && printerStatus.printers.filter(p => p.length > 2).length > 0 && (
+                <div className="text-xs text-gray-500">
+                  <span>Daftar printer: </span>
+                  {printerStatus.printers.filter(p => p.length > 2 && !p.includes("\n") && !p.includes("\x00")).map((p, i) => (
+                    <span key={i} className="inline-block bg-gray-100 rounded px-2 py-0.5 mr-1 mb-1 font-mono">{p}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
