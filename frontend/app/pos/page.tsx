@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, formatIDR } from "@/lib/api";
+import { printReceipt } from "@/lib/printer";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { Search, Plus, Minus, Trash2, ShoppingCart, LogIn, LogOut as LogOutIcon } from "lucide-react";
@@ -50,6 +51,15 @@ export default function POSPage() {
     },
   });
 
+  const { data: storeSettings } = useQuery<Record<string, string>>({
+    queryKey: ["store-settings"],
+    queryFn: async () => {
+      try { const { data } = await api.get("/public/store"); return data.data; }
+      catch { return {}; }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: register, refetch: refetchRegister } = useQuery<Register | null>({
     queryKey: ["pos-register"],
     queryFn: async () => {
@@ -88,6 +98,27 @@ export default function POSPage() {
     },
     onSuccess: (order) => {
       toast.success(`Pesanan #${order?.order_number} berhasil`);
+      // Cetak struk: agent ESC/POS lokal, fallback dialog browser
+      printReceipt({
+        storeName: storeSettings?.store_name || "doughroom.co",
+        storeAddress: storeSettings?.store_address || "",
+        orderNumber: order?.order_number ?? "-",
+        createdAt: order?.created_at ?? new Date().toISOString(),
+        cashierName: user?.name,
+        items: cart.map(ci => ({ name: ci.product.name, quantity: ci.quantity, price: ci.product.selling_price })),
+        subtotal: posSubtotal,
+        discount: posDiscount || undefined,
+        promoCode: posPromoResult?.code,
+        total: order?.total_amount ?? total,
+        paymentMethod,
+        cashReceived: paymentMethod === "CASH" ? parseInt(cashReceived || "0", 10) || undefined : undefined,
+        change: paymentMethod === "CASH" ? change : undefined,
+        footer: `--- ${storeSettings?.store_name || "doughroom.co"} ---`,
+      }).then(r => {
+        if (r.via === "agent") toast.success("Struk tercetak");
+        else if (r.via === "bluetooth") toast.success("Struk tercetak via Bluetooth");
+        else toast.info("Struk dibuka di dialog cetak browser (install printer-agent atau gunakan printer BLE untuk cetak langsung)");
+      }).catch(() => toast.error("Gagal mencetak struk"));
       setCart([]);
       setCashReceived("");
       setPosPromoCode("");

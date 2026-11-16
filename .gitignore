@@ -25,3 +25,7 @@ Thumbs.db
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Printer agent binaries
+printer-agent/*.exe
+printer-agent/printer-agent
