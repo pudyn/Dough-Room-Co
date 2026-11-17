@@ -84,7 +84,27 @@ async function tryBluetooth(bytes: Uint8Array): Promise<boolean> {
       device = devices.find((d: any) => d.id === savedId) ?? null;
     }
     if (!device) {
-      device = await nav.bluetooth.requestDevice({ filters: [{ services: BT_SERVICES[0] }, { services: BT_SERVICES[1] }, { services: BT_SERVICES[2] }, { services: BT_SERVICES[3] }], optionalServices: BT_SERVICES });
+      // Coba filter by service UUID dulu, kalau gagal pakai acceptAllDevices
+      try {
+        device = await nav.bluetooth.requestDevice({
+          filters: [
+            { services: [BT_SERVICES[0]] },
+            { services: [BT_SERVICES[1]] },
+            { services: [BT_SERVICES[2]] },
+            { services: [BT_SERVICES[3]] },
+            { namePrefix: "RPP" },
+            { namePrefix: "POS" },
+            { namePrefix: "Printer" },
+            { namePrefix: "BlueTooth Printer" },
+          ],
+          optionalServices: BT_SERVICES,
+        });
+      } catch {
+        device = await nav.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: BT_SERVICES,
+        });
+      }
       localStorage.setItem(BT_DEVICE_KEY, (device as any).id ?? device.name ?? "");
     }
 
@@ -105,7 +125,7 @@ async function tryBluetooth(bytes: Uint8Array): Promise<boolean> {
     (server as any).disconnect?.();
     return false;
   } catch {
-    return false; // user batal / tidak cocok → lanjut fallback
+    return false;
   }
 }
 
