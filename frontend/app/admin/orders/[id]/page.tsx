@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, formatIDR } from "@/lib/api";
-import { ArrowLeft, Upload, CheckCircle, XCircle, Printer, Bluetooth, Monitor } from "lucide-react";
+import { ArrowLeft, Upload, CheckCircle, XCircle, Printer, Bluetooth, Monitor, X, Eye } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import { printReceipt, checkAgent, bluetoothSupported } from "@/lib/printer";
@@ -35,6 +35,8 @@ export default function OrderDetailPage() {
   const [lightbox, setLightbox] = useState(false);
   const [printerOnline, setPrinterOnline] = useState<boolean | null>(null);
   const [hasBluetooth, setHasBluetooth] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     setHasBluetooth(bluetoothSupported());
@@ -93,7 +95,17 @@ export default function OrderDetailPage() {
   const order = data;
   const allowedNext = nextStatuses[order.order_status] ?? [];
 
+  const receiptItems = (order.items ?? []).map((it: { product_name: string; quantity: number; unit_price: number }) => ({
+    name: it.product_name,
+    quantity: it.quantity,
+    price: it.unit_price,
+  }));
+  const receiptSubtotal = (order.items ?? []).reduce((sum: number, it: { unit_price: number; quantity: number }) => sum + it.unit_price * it.quantity, 0);
+  const receiptDiscount = order.discount_amount ?? 0;
+  const receiptPaymentMethod = order.payment?.payment_method ?? "CASH";
+
   async function handlePrintReceipt() {
+    setPrinting(true);
     try {
       const result = await printReceipt({
         storeName: storeSettings?.store_name || "doughroom.co",
@@ -102,25 +114,24 @@ export default function OrderDetailPage() {
         createdAt: order.created_at ?? new Date().toISOString(),
         cashierName: order.cashier_name,
         customerName: order.customer_name,
-        items: (order.items ?? []).map((it: { product_name: string; quantity: number; unit_price: number }) => ({
-          name: it.product_name,
-          quantity: it.quantity,
-          price: it.unit_price,
-        })),
-        subtotal: (order.items ?? []).reduce((sum: number, it: { unit_price: number; quantity: number }) => sum + it.unit_price * it.quantity, 0),
-        discount: order.discount_amount ?? 0,
+        items: receiptItems,
+        subtotal: receiptSubtotal,
+        discount: receiptDiscount,
         promoCode: order.promo_code,
         total: order.total_amount,
-        paymentMethod: order.payment?.payment_method ?? "CASH",
+        paymentMethod: receiptPaymentMethod,
         cashReceived: order.payment?.cash_received,
         change: order.payment?.change_amount,
         footer: `--- ${storeSettings?.store_name || "doughroom.co"} ---`,
       });
+      setShowReceipt(false);
       if (result.via === "agent") toast.success("Struk tercetak");
       else if (result.via === "bluetooth") toast.success("Struk tercetak via Bluetooth");
       else toast.info("Struk dibuka di dialog cetak browser");
     } catch {
       toast.error("Gagal mencetak struk");
+    } finally {
+      setPrinting(false);
     }
   }
 
@@ -133,8 +144,8 @@ export default function OrderDetailPage() {
           <span className={clsx("badge-status text-xs", statusColors[order.order_status])}>{order.order_status}</span>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <button onClick={handlePrintReceipt} className="btn-secondary text-sm flex items-center gap-1.5">
-            <Printer size={16} /> Cetak Struk
+          <button onClick={() => setShowReceipt(true)} className="btn-secondary text-sm flex items-center gap-1.5">
+            <Eye size={16} /> Lihat Struk
           </button>
           <div className="flex flex-col items-end gap-0.5">
             <span className={clsx("flex items-center gap-1 text-xs",
@@ -264,6 +275,64 @@ export default function OrderDetailPage() {
       {lightbox && order.payment?.proof_url && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setLightbox(false)}>
           <img src={order.payment.proof_url} alt="Bukti Transfer" className="max-w-full max-h-[90vh] rounded-lg shadow-2xl" />
+        </div>
+      )}
+
+      {showReceipt && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowReceipt(false)}>
+          <div className="bg-white rounded-xl w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-3 border-b">
+              <h3 className="font-semibold text-gray-900 text-sm">Preview Struk</h3>
+              <button onClick={() => setShowReceipt(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <div className="p-4 font-mono text-xs leading-relaxed bg-gray-50">
+              <div className="text-center">
+                <p className="text-base font-bold">doughroom.co</p>
+                <p className="text-gray-500">Bakehouse Donuts</p>
+                {storeSettings?.store_address && <p className="text-gray-500">{storeSettings.store_address}</p>}
+              </div>
+              <hr className="my-2 border-dashed border-gray-400" />
+              <p>No: {order.order_number}</p>
+              <p>Tgl: {new Date(order.created_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", hour12: false })}</p>
+              {order.cashier_name && <p>Kasir: {order.cashier_name}</p>}
+              <p>Pelanggan: {order.customer_name || "Walk-in"}</p>
+              <hr className="my-2 border-dashed border-gray-400" />
+              {receiptItems.map((it: { name: string; quantity: number; price: number }, i: number) => (
+                <div key={i} className="mb-1">
+                  <p>{it.quantity}x {it.name}</p>
+                  <div className="flex justify-between text-gray-500">
+                    <span>&nbsp;&nbsp;{formatIDR(it.price)} x {it.quantity}</span>
+                    <span>{formatIDR(it.price * it.quantity)}</span>
+                  </div>
+                </div>
+              ))}
+              <hr className="my-2 border-dashed border-gray-400" />
+              <div className="flex justify-between"><span>Subtotal</span><span>{formatIDR(receiptSubtotal)}</span></div>
+              {receiptDiscount > 0 && (
+                <div className="flex justify-between"><span>Diskon{order.promo_code ? ` (${order.promo_code})` : ""}</span><span>-{formatIDR(receiptDiscount)}</span></div>
+              )}
+              <div className="flex justify-between font-bold"><span>TOTAL</span><span>{formatIDR(order.total_amount)}</span></div>
+              <div className="flex justify-between">
+                <span>{receiptPaymentMethod === "CASH" ? "Tunai" : "Transfer"}</span>
+                <span>{formatIDR(order.total_amount)}</span>
+              </div>
+              {receiptPaymentMethod === "CASH" && order.payment?.cash_received != null && (
+                <>
+                  <div className="flex justify-between"><span>Tunai Diterima</span><span>{formatIDR(order.payment.cash_received)}</span></div>
+                  <div className="flex justify-between"><span>Kembalian</span><span>{formatIDR(order.payment.change_amount ?? 0)}</span></div>
+                </>
+              )}
+              <hr className="my-2 border-dashed border-gray-400" />
+              <p className="text-center text-gray-500">Terima kasih atas kunjungan Anda!</p>
+              <p className="text-center text-gray-400">--- {storeSettings?.store_name || "doughroom.co"} ---</p>
+            </div>
+            <div className="p-3 border-t flex gap-2">
+              <button onClick={() => setShowReceipt(false)} className="btn-secondary flex-1 text-sm">Tutup</button>
+              <button onClick={handlePrintReceipt} disabled={printing} className="btn-primary flex-1 text-sm flex items-center justify-center gap-1.5">
+                <Printer size={14} /> {printing ? "Mencetak..." : "Cetak Struk"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
