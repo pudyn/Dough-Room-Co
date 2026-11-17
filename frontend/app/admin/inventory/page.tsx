@@ -95,12 +95,12 @@ export default function InventoryPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Produk</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">SKU</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Stok Fisik</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Stok Tersedia</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Ambang</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Produk</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">SKU</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Stok Fisik</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Stok Tersedia</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Ambang</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y">

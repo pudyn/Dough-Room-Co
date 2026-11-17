@@ -180,12 +180,12 @@ export default function PromosPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Kode</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Nama</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Diskon</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Min. Order</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Kode</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Nama</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Diskon</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Min. Order</th>
               <th className="text-center px-4 py-3 font-medium text-gray-600">Penggunaan</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Berlaku</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Berlaku</th>
               <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
               <th className="px-4 py-3"></th>
             </tr>

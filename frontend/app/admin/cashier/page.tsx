@@ -116,14 +116,14 @@ export default function CashierPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Operator</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Buka</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Tutup</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Operator</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Buka</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Tutup</th>
               <th className="text-center px-4 py-3 font-medium text-gray-600">Durasi</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Saldo Awal</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Saldo Akhir</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Saldo Awal</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Saldo Akhir</th>
               <th className="text-center px-4 py-3 font-medium text-gray-600">Transaksi</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Penjualan</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Penjualan</th>
               <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
             </tr>
           </thead>

@@ -99,12 +99,12 @@ export default function ProductsPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Produk</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">SKU</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Kategori</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Harga</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Stok</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Mode</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Produk</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">SKU</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Kategori</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Harga</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Stok</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Mode</th>
               <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
               <th className="px-4 py-3"></th>
             </tr>

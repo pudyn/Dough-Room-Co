@@ -71,11 +71,11 @@ export default function CustomersPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Nama</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">WhatsApp</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Total Pesanan</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Bergabung</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Nama</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">WhatsApp</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Email</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Total Pesanan</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Bergabung</th>
             </tr>
           </thead>
           <tbody className="divide-y">
