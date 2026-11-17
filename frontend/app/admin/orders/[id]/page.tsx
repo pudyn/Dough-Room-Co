@@ -32,6 +32,7 @@ export default function OrderDetailPage() {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["order", id],
@@ -175,7 +176,8 @@ export default function OrderDetailPage() {
           {order.payment.proof_url && (
             <div>
               <p className="text-xs text-gray-500 mb-2">Bukti Transfer:</p>
-              <img src={order.payment.proof_url} alt="Bukti" className="max-h-48 rounded-lg border w-auto" />
+              <img src={order.payment.proof_url} alt="Bukti" onClick={() => setLightbox(true)}
+                className="max-h-48 rounded-lg border w-auto cursor-pointer hover:opacity-80 transition-opacity" />
             </div>
           )}
           {order.payment.payment_status === "PENDING" && (
@@ -221,6 +223,12 @@ export default function OrderDetailPage() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {lightbox && order.payment?.proof_url && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setLightbox(false)}>
+          <img src={order.payment.proof_url} alt="Bukti Transfer" className="max-w-full max-h-[90vh] rounded-lg shadow-2xl" />
         </div>
       )}
     </div>
