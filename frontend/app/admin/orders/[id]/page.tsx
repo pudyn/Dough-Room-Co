@@ -4,9 +4,10 @@ import { useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, formatIDR } from "@/lib/api";
-import { ArrowLeft, Upload, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Upload, CheckCircle, XCircle, Printer } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
+import { printReceipt } from "@/lib/printer";
 
 const statusColors: Record<string, string> = {
   PENDING_PAYMENT: "bg-yellow-50 text-yellow-700",
@@ -36,6 +37,15 @@ export default function OrderDetailPage() {
     queryKey: ["order", id],
     queryFn: async () => { const { data } = await api.get(`/orders/${id}`); return data.data; },
     enabled: !!id,
+  });
+
+  const { data: storeSettings } = useQuery<Record<string, string>>({
+    queryKey: ["store-settings"],
+    queryFn: async () => {
+      try { const { data } = await api.get("/public/store"); return data.data; }
+      catch { return {}; }
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   const statusMutation = useMutation({
@@ -73,14 +83,44 @@ export default function OrderDetailPage() {
   const order = data;
   const allowedNext = nextStatuses[order.order_status] ?? [];
 
+  async function handlePrintReceipt() {
+    try {
+      const result = await printReceipt({
+        storeName: storeSettings?.store_name || "doughroom.co",
+        storeAddress: storeSettings?.store_address || "",
+        orderNumber: order.order_number ?? "-",
+        createdAt: order.created_at ?? new Date().toISOString(),
+        items: (order.items ?? []).map((it: { product_name: string; quantity: number; unit_price: number }) => ({
+          name: it.product_name,
+          quantity: it.quantity,
+          price: it.unit_price,
+        })),
+        subtotal: order.total_amount,
+        discount: order.discount_amount ?? 0,
+        promoCode: order.promo_code,
+        total: order.total_amount - (order.discount_amount ?? 0),
+        paymentMethod: order.payment?.payment_method ?? "CASH",
+        footer: `--- ${storeSettings?.store_name || "doughroom.co"} ---`,
+      });
+      if (result.via === "agent") toast.success("Struk tercetak");
+      else if (result.via === "bluetooth") toast.success("Struk tercetak via Bluetooth");
+      else toast.info("Struk dibuka di dialog cetak browser");
+    } catch {
+      toast.error("Gagal mencetak struk");
+    }
+  }
+
   return (
     <div className="p-6 space-y-4 max-w-2xl">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600"><ArrowLeft size={20} /></button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900 font-mono">{order.order_number}</h1>
           <span className={clsx("badge-status text-xs", statusColors[order.order_status])}>{order.order_status}</span>
         </div>
+        <button onClick={handlePrintReceipt} className="btn-secondary text-sm flex items-center gap-1.5">
+          <Printer size={16} /> Cetak Struk
+        </button>
       </div>
 
       {/* Customer info */}
