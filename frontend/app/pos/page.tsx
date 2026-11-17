@@ -29,6 +29,7 @@ export default function POSPage() {
   const [posPromoCode, setPosPromoCode] = useState("");
   const [posPromoResult, setPosPromoResult] = useState<{ promo_id: string; code: string; discount: number } | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [customerName, setCustomerName] = useState("");
 
   useEffect(() => { init(); }, [init]);
   useEffect(() => {
@@ -92,6 +93,7 @@ export default function POSPage() {
       const { data } = await api.post("/pos/orders", {
         items: cart.map(ci => ({ product_id: ci.product.id, quantity: ci.quantity })),
         payment_method: paymentMethod,
+        customer_name: customerName.trim() || undefined,
         promo_code_id: posPromoResult?.promo_id || undefined,
         cash_received: paymentMethod === "CASH" ? parseInt(cashReceived || "0", 10) : undefined,
       });
@@ -106,7 +108,7 @@ export default function POSPage() {
         orderNumber: order?.order_number ?? "-",
         createdAt: order?.created_at ?? new Date().toISOString(),
         cashierName: user?.name,
-        customerName: order?.customer_name || "Walk-in",
+        customerName: customerName.trim() || order?.customer_name || "Walk-in",
         items: cart.map(ci => ({ name: ci.product.name, quantity: ci.quantity, price: ci.product.selling_price })),
         subtotal: posSubtotal,
         discount: posDiscount || undefined,
@@ -123,6 +125,7 @@ export default function POSPage() {
       }).catch(() => toast.error("Gagal mencetak struk"));
       setCart([]);
       setCashReceived("");
+      setCustomerName("");
       setPosPromoCode("");
       setPosPromoResult(null);
       qc.invalidateQueries({ queryKey: ["pos-products"] });
@@ -294,6 +297,13 @@ export default function POSPage() {
             <span>Total</span>
             <span className="text-primary-600">{formatIDR(total)}</span>
           </div>
+
+          <input
+            className="input text-sm"
+            placeholder="Nama pelanggan (opsional)"
+            value={customerName}
+            onChange={e => setCustomerName(e.target.value)}
+          />
 
           {/* Promo code */}
           <div className="flex gap-1">
