@@ -8,6 +8,7 @@ export type ReceiptData = {
   orderNumber: string;
   createdAt: string;
   cashierName?: string;
+  customerName?: string;
   items: ReceiptItem[];
   subtotal: number;
   discount?: number;
@@ -129,6 +130,7 @@ export function buildReceiptBytes(d: ReceiptData): Uint8Array {
   p.text(`No: ${d.orderNumber}\n`);
   p.text(`Tgl: ${new Date(d.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", hour12: false })}\n`);
   if (d.cashierName) p.text(`Kasir: ${d.cashierName}\n`);
+  p.text(`Pelanggan: ${d.customerName || "Walk-in"}\n`);
   p.line("-");
 
   for (const it of d.items) {

@@ -169,7 +169,7 @@ function receiptHTML(d: ReceiptData): string {
     <p class="muted">Bakehouse Donuts${d.storeAddress ? `<br/>${escapeHtml(d.storeAddress)}` : ""}</p>
     <hr/>
     <p>No: ${escapeHtml(d.orderNumber)}<br/>
-       Tgl: ${new Date(d.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", hour12: false })}${d.cashierName ? `<br/>Kasir: ${escapeHtml(d.cashierName)}` : ""}</p>
+       Tgl: ${new Date(d.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", hour12: false })}${d.cashierName ? `<br/>Kasir: ${escapeHtml(d.cashierName)}` : ""}<br/>Pelanggan: ${escapeHtml(d.customerName || "Walk-in")}</p>
     <hr/>
     <table>${rows}</table>
     <hr/>

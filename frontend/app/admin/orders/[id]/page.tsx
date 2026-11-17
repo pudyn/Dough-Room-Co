@@ -100,6 +100,8 @@ export default function OrderDetailPage() {
         storeAddress: storeSettings?.store_address || "",
         orderNumber: order.order_number ?? "-",
         createdAt: order.created_at ?? new Date().toISOString(),
+        cashierName: order.cashier_name,
+        customerName: order.customer_name,
         items: (order.items ?? []).map((it: { product_name: string; quantity: number; unit_price: number }) => ({
           name: it.product_name,
           quantity: it.quantity,
@@ -110,6 +112,8 @@ export default function OrderDetailPage() {
         promoCode: order.promo_code,
         total: order.total_amount,
         paymentMethod: order.payment?.payment_method ?? "CASH",
+        cashReceived: order.payment?.cash_received,
+        change: order.payment?.change_amount,
         footer: `--- ${storeSettings?.store_name || "doughroom.co"} ---`,
       });
       if (result.via === "agent") toast.success("Struk tercetak");
