@@ -208,8 +208,32 @@ const PRINT_CSS = `
   td { vertical-align: top; padding: 0; }
 `;
 
+function isSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /Safari/.test(ua) && !/Chrome/.test(ua);
+}
+
 function browserPrint(data: ReceiptData) {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>${PRINT_CSS}</style></head><body>${receiptHTML(data)}</body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${PRINT_CSS}
+    .no-print { padding: 12px; text-align: center; background: #f0f0f0; }
+    .no-print button { background: #333; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; margin: 4px; cursor: pointer; }
+  </style></head><body>
+  <div class="no-print">
+    <button onclick="window.print()">🖨 Cetak</button>
+    <button onclick="window.close()">✕ Tutup</button>
+  </div>
+  ${receiptHTML(data)}</body></html>`;
+
+  if (isSafari()) {
+    const w = window.open("", "_blank");
+    if (w) {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }
+    return;
+  }
 
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
