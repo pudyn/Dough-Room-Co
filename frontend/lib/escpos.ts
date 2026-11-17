@@ -157,7 +157,7 @@ export function buildReceiptBytes(d: ReceiptData): Uint8Array {
 
   p.centerText("Terima kasih atas kunjungan Anda!");
   if (d.footer) p.centerText(d.footer);
-  p.feed(4);
+  p.feed(2);
   p.cut();
   return p.build();
 }
@@ -179,7 +179,7 @@ export function buildKitchenTicketBytes(d: ReceiptData): Uint8Array {
     p.wrap(it.name);
     p.line(".");
   }
-  p.feed(4);
+  p.feed(2);
   p.cut();
   return p.build();
 }
