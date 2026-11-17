@@ -155,8 +155,8 @@ export function buildReceiptBytes(d: ReceiptData): Uint8Array {
   }
   p.line("=");
 
-  if (d.footer) p.centerText(d.footer);
   p.centerText("Terima kasih atas kunjungan Anda!");
+  if (d.footer) p.centerText(d.footer);
   p.feed(4);
   p.cut();
   return p.build();

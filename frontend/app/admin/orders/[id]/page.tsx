@@ -54,7 +54,7 @@ export default function OrderDetailPage() {
   const { data: storeSettings } = useQuery<Record<string, string>>({
     queryKey: ["store-settings"],
     queryFn: async () => {
-      try { const { data } = await api.get("/public/store"); return data.data; }
+      try { const { data } = await api.get("/public/store"); return data.data?.settings ?? data.data ?? {}; }
       catch { return {}; }
     },
     staleTime: 5 * 60 * 1000,
@@ -324,7 +324,7 @@ export default function OrderDetailPage() {
               )}
               <hr className="my-2 border-dashed border-gray-400" />
               <p className="text-center text-gray-500">Terima kasih atas kunjungan Anda!</p>
-              <p className="text-center text-gray-400">--- {storeSettings?.store_name || "doughroom.co"} ---</p>
+              <p className="text-center text-gray-400 mt-1">--- {storeSettings?.store_name || "doughroom.co"} ---</p>
             </div>
             <div className="p-3 border-t flex gap-2">
               <button onClick={() => setShowReceipt(false)} className="btn-secondary flex-1 text-sm">Tutup</button>

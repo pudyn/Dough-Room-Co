@@ -184,6 +184,7 @@ function receiptHTML(d: ReceiptData): string {
     </table>
     <hr/>
     <p class="center">Terima kasih atas kunjungan Anda!</p>
+    ${d.footer ? `<p class="center muted">${escapeHtml(d.footer)}</p>` : ""}
   </div>`;
 }
 

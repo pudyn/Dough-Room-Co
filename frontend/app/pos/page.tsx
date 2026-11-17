@@ -56,7 +56,7 @@ export default function POSPage() {
   const { data: storeSettings } = useQuery<Record<string, string>>({
     queryKey: ["store-settings"],
     queryFn: async () => {
-      try { const { data } = await api.get("/public/store"); return data.data; }
+      try { const { data } = await api.get("/public/store"); return data.data?.settings ?? data.data ?? {}; }
       catch { return {}; }
     },
     staleTime: 5 * 60 * 1000,
