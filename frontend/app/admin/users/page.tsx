@@ -70,7 +70,7 @@ export default function UsersPage() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Pengguna</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
         <button onClick={() => exportToExcel((data ?? []), [
           { key: "name", label: "Nama" },
           { key: "email", label: "Email" },
@@ -113,8 +113,8 @@ export default function UsersPage() {
                 <td className="px-4 py-3 text-gray-400 text-xs">{new Date(u.created_at).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
-                    <button onClick={() => openEdit(u)} className="text-blue-500 hover:text-blue-700"><Edit size={15} /></button>
-                    <button onClick={() => { if (confirm(`Hapus ${u.name}?`)) deleteMutation.mutate(u.id); }} className="text-red-400 hover:text-red-600"><Trash2 size={15} /></button>
+                    <button onClick={() => openEdit(u)} className="text-blue-500 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50"><Edit size={15} /></button>
+                    <button onClick={() => { if (confirm(`Hapus ${u.name}?`)) deleteMutation.mutate(u.id); }} className="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50"><Trash2 size={15} /></button>
                   </div>
                 </td>
               </tr>

@@ -45,7 +45,7 @@ export default function CustomersPage() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Pelanggan</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
         <button onClick={() => exportToExcel(customers, [
           { key: "name", label: "Nama" },
           { key: "phone", label: "Telepon" },
@@ -107,7 +107,7 @@ export default function CustomersPage() {
       {/* Add customer modal */}
       {showAdd && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-96 space-y-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900">Tambah Pelanggan</h3>
               <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>

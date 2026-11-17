@@ -143,7 +143,7 @@ export default function PromosPage() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Kode Promo</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
         <button onClick={() => exportToExcel(promos, [
           { key: "code", label: "Kode" },
           { key: "name", label: "Nama" },
@@ -232,13 +232,13 @@ export default function PromosPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => router.push(`/admin/promos/${p.id}`)} title="Detail & riwayat penggunaan" className="text-gray-400 hover:text-primary-600">
+                    <button onClick={() => router.push(`/admin/promos/${p.id}`)} title="Detail & riwayat penggunaan" className="text-gray-400 hover:text-primary-600 p-1.5 rounded hover:bg-gray-100">
                       <Eye size={16} />
                     </button>
-                    <button onClick={() => openEdit(p)} className="text-primary-600 hover:text-primary-700" title="Edit">
+                    <button onClick={() => openEdit(p)} className="text-primary-600 hover:text-primary-700 p-1.5 rounded hover:bg-primary-50" title="Edit">
                       <Edit size={16} />
                     </button>
-                    <button onClick={() => setDeleteTarget(p)} className="text-gray-400 hover:text-red-600" title="Hapus">
+                    <button onClick={() => setDeleteTarget(p)} className="text-gray-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50" title="Hapus">
                       <Trash2 size={16} />
                     </button>
                   </div>

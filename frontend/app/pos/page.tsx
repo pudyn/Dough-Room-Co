@@ -28,6 +28,7 @@ export default function POSPage() {
   const [closingCash, setClosingCash] = useState("");
   const [posPromoCode, setPosPromoCode] = useState("");
   const [posPromoResult, setPosPromoResult] = useState<{ promo_id: string; code: string; discount: number } | null>(null);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
   useEffect(() => { init(); }, [init]);
   useEffect(() => {
@@ -230,11 +231,29 @@ export default function POSPage() {
         </div>
       </div>
 
+      {/* Mobile cart toggle */}
+      {cart.length > 0 && !mobileCartOpen && (
+        <button onClick={() => setMobileCartOpen(true)}
+          className="lg:hidden fixed bottom-4 right-4 z-40 bg-primary-600 text-white rounded-full px-5 py-3 shadow-lg flex items-center gap-2 font-semibold text-sm">
+          <ShoppingCart size={18} /> {cart.reduce((s, ci) => s + ci.quantity, 0)} item · {formatIDR(total)}
+        </button>
+      )}
+
+      {/* Mobile cart backdrop */}
+      {mobileCartOpen && <div className="lg:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setMobileCartOpen(false)} />}
+
       {/* Right: Cart */}
-      <div className="w-80 bg-white border-l flex flex-col">
+      <div className={clsx(
+        "bg-white border-l flex flex-col",
+        "fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] transition-transform duration-200 lg:static lg:translate-x-0 lg:z-auto",
+        mobileCartOpen ? "translate-x-0" : "translate-x-full"
+      )}>
         <div className="p-4 border-b flex items-center justify-between">
           <h2 className="font-bold text-gray-900 flex items-center gap-2"><ShoppingCart size={18} /> Keranjang</h2>
-          {cart.length > 0 && <button onClick={() => setCart([])} className="text-xs text-red-500 hover:underline">Kosongkan</button>}
+          <div className="flex items-center gap-2">
+            {cart.length > 0 && <button onClick={() => setCart([])} className="text-xs text-red-500 hover:underline">Kosongkan</button>}
+            <button onClick={() => setMobileCartOpen(false)} className="lg:hidden text-gray-400 hover:text-gray-600 p-1">✕</button>
+          </div>
         </div>
 
         {/* Cart items */}
@@ -323,7 +342,7 @@ export default function POSPage() {
       {/* Register Modal */}
       {registerModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-80 space-y-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm mx-4 space-y-4">
             <h3 className="font-bold text-gray-900">{registerModal === "open" ? "Buka Kasir" : "Tutup Kasir"}</h3>
             <div>
               <label className="label">{registerModal === "open" ? "Uang Kas Awal" : "Uang Kas Akhir"}</label>

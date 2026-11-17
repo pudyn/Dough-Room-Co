@@ -63,7 +63,7 @@ export default function ProductsPage() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Produk</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
         <button onClick={() => exportToExcel(products, [
           { key: "name", label: "Nama" },
           { key: "sku", label: "SKU" },

@@ -160,13 +160,13 @@ export default function PreorderDetailPage() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={clsx(
-                "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+                "px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
                 activeTab === tab
                   ? "border-primary-600 text-primary-700"
                   : "border-transparent text-gray-500 hover:text-gray-700"
               )}
             >
-              {tab === "orders" ? "Pesanan" : tab === "quotas" ? "Kuota Produk" : "Ringkasan Produksi"}
+              {tab === "orders" ? "Pesanan" : tab === "quotas" ? "Kuota" : "Produksi"}
             </button>
           ))}
         </div>

@@ -65,7 +65,7 @@ export default function CashierPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-900">Riwayat Kasir</h1>
         <button
           onClick={() =>
@@ -140,16 +140,16 @@ export default function CashierPage() {
             )}
             {registers.map((r) => (
               <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{r.opened_by_name}</td>
-                <td className="px-4 py-3 text-xs text-gray-600">{formatDt(r.opened_at)}</td>
-                <td className="px-4 py-3 text-xs text-gray-600">{formatDt(r.closed_at)}</td>
-                <td className="px-4 py-3 text-center text-xs text-gray-500">{duration(r.opened_at, r.closed_at)}</td>
-                <td className="px-4 py-3 text-right">{formatIDR(r.opening_balance)}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{r.opened_by_name}</td>
+                <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{formatDt(r.opened_at)}</td>
+                <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{formatDt(r.closed_at)}</td>
+                <td className="px-4 py-3 text-center text-xs text-gray-500 whitespace-nowrap">{duration(r.opened_at, r.closed_at)}</td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">{formatIDR(r.opening_balance)}</td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
                   {r.closing_balance != null ? formatIDR(r.closing_balance) : "-"}
                 </td>
                 <td className="px-4 py-3 text-center font-medium">{r.total_orders}</td>
-                <td className="px-4 py-3 text-right font-medium text-primary-700">{formatIDR(r.total_sales)}</td>
+                <td className="px-4 py-3 text-right font-medium text-primary-700 whitespace-nowrap">{formatIDR(r.total_sales)}</td>
                 <td className="px-4 py-3 text-center">
                   <span
                     className={clsx(

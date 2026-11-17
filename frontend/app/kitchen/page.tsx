@@ -118,7 +118,7 @@ export default function KitchenPage() {
             <p className="text-gray-400 text-xs">doughroom.co Bakehouse Donuts</p>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-sm text-gray-400">
+        <div className="flex items-center gap-3 sm:gap-4 text-sm text-gray-400 flex-wrap">
           <span className="flex items-center gap-1"><Bell size={14} className="text-blue-400" /> {confirmed.length} antrian</span>
           <span className="flex items-center gap-1"><ChefHat size={14} className="text-yellow-400" /> {preparing.length} diproses</span>
           <span className="flex items-center gap-1"><CheckCircle size={14} className="text-green-400" /> {ready.length} siap</span>
@@ -128,7 +128,7 @@ export default function KitchenPage() {
       </div>
 
       {/* Columns */}
-      <div className="grid grid-cols-3 gap-4 p-6 h-[calc(100vh-73px)] overflow-hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 sm:p-6 lg:h-[calc(100vh-73px)] overflow-auto lg:overflow-hidden">
         {/* Antrian */}
         <div className="flex flex-col gap-3 overflow-y-auto">
           <h2 className="text-blue-400 font-semibold flex items-center gap-2 sticky top-0 bg-gray-900 pb-2">
