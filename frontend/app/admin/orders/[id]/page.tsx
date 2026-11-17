@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, formatIDR } from "@/lib/api";
 import { ArrowLeft, Upload, CheckCircle, XCircle, Printer } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
-import { printReceipt } from "@/lib/printer";
+import { printReceipt, checkAgent } from "@/lib/printer";
 
 const statusColors: Record<string, string> = {
   PENDING_PAYMENT: "bg-yellow-50 text-yellow-700",
@@ -33,6 +33,13 @@ export default function OrderDetailPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState(false);
+  const [printerOnline, setPrinterOnline] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkAgent().then(setPrinterOnline);
+    const interval = setInterval(() => checkAgent().then(setPrinterOnline), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["order", id],
@@ -96,10 +103,10 @@ export default function OrderDetailPage() {
           quantity: it.quantity,
           price: it.unit_price,
         })),
-        subtotal: order.total_amount,
+        subtotal: (order.items ?? []).reduce((sum: number, it: { unit_price: number; quantity: number }) => sum + it.unit_price * it.quantity, 0),
         discount: order.discount_amount ?? 0,
         promoCode: order.promo_code,
-        total: order.total_amount - (order.discount_amount ?? 0),
+        total: order.total_amount,
         paymentMethod: order.payment?.payment_method ?? "CASH",
         footer: `--- ${storeSettings?.store_name || "doughroom.co"} ---`,
       });
@@ -119,8 +126,14 @@ export default function OrderDetailPage() {
           <h1 className="text-xl font-bold text-gray-900 font-mono">{order.order_number}</h1>
           <span className={clsx("badge-status text-xs", statusColors[order.order_status])}>{order.order_status}</span>
         </div>
-        <button onClick={handlePrintReceipt} className="btn-secondary text-sm flex items-center gap-1.5">
-          <Printer size={16} /> Cetak Struk
+        <button onClick={handlePrintReceipt} className="btn-secondary text-sm flex items-center gap-1.5" title={printerOnline ? "Printer agent terhubung" : printerOnline === false ? "Printer agent offline — akan fallback ke browser" : "Mengecek printer..."}>
+          <span className="relative">
+            <Printer size={16} />
+            <span className={clsx("absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white",
+              printerOnline === null ? "bg-gray-400" : printerOnline ? "bg-green-500" : "bg-red-400"
+            )} />
+          </span>
+          Cetak Struk
         </button>
       </div>
 
