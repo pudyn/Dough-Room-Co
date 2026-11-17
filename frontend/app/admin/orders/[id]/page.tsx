@@ -4,10 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, formatIDR } from "@/lib/api";
-import { ArrowLeft, Upload, CheckCircle, XCircle, Printer } from "lucide-react";
+import { ArrowLeft, Upload, CheckCircle, XCircle, Printer, Bluetooth, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
-import { printReceipt, checkAgent } from "@/lib/printer";
+import { printReceipt, checkAgent, bluetoothSupported } from "@/lib/printer";
 
 const statusColors: Record<string, string> = {
   PENDING_PAYMENT: "bg-yellow-50 text-yellow-700",
@@ -34,8 +34,10 @@ export default function OrderDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   const [printerOnline, setPrinterOnline] = useState<boolean | null>(null);
+  const [hasBluetooth, setHasBluetooth] = useState(false);
 
   useEffect(() => {
+    setHasBluetooth(bluetoothSupported());
     checkAgent().then(setPrinterOnline);
     const interval = setInterval(() => checkAgent().then(setPrinterOnline), 30000);
     return () => clearInterval(interval);
@@ -126,18 +128,30 @@ export default function OrderDetailPage() {
           <h1 className="text-xl font-bold text-gray-900 font-mono">{order.order_number}</h1>
           <span className={clsx("badge-status text-xs", statusColors[order.order_status])}>{order.order_status}</span>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-1.5">
           <button onClick={handlePrintReceipt} className="btn-secondary text-sm flex items-center gap-1.5">
             <Printer size={16} /> Cetak Struk
           </button>
-          <span className={clsx("flex items-center gap-1 text-xs",
-            printerOnline === null ? "text-gray-400" : printerOnline ? "text-green-600" : "text-red-500"
-          )}>
-            <span className={clsx("w-2 h-2 rounded-full",
-              printerOnline === null ? "bg-gray-400" : printerOnline ? "bg-green-500" : "bg-red-400"
-            )} />
-            {printerOnline === null ? "Mengecek printer..." : printerOnline ? "Printer terhubung" : "Printer offline"}
-          </span>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className={clsx("flex items-center gap-1 text-xs",
+              printerOnline === null ? "text-gray-400" : printerOnline ? "text-green-600" : "text-red-500"
+            )}>
+              <Monitor size={12} />
+              <span className={clsx("w-1.5 h-1.5 rounded-full",
+                printerOnline === null ? "bg-gray-400" : printerOnline ? "bg-green-500" : "bg-red-400"
+              )} />
+              {printerOnline === null ? "Agent: cek..." : printerOnline ? "Agent: terhubung" : "Agent: offline"}
+            </span>
+            <span className={clsx("flex items-center gap-1 text-xs",
+              hasBluetooth ? "text-blue-600" : "text-gray-400"
+            )}>
+              <Bluetooth size={12} />
+              <span className={clsx("w-1.5 h-1.5 rounded-full",
+                hasBluetooth ? "bg-blue-500" : "bg-gray-400"
+              )} />
+              {hasBluetooth ? "Bluetooth: tersedia" : "Bluetooth: tidak didukung"}
+            </span>
+          </div>
         </div>
       </div>
 
