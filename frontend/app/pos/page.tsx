@@ -106,6 +106,7 @@ export default function POSPage() {
         orderNumber: order?.order_number ?? "-",
         createdAt: order?.created_at ?? new Date().toISOString(),
         cashierName: user?.name,
+        customerName: order?.customer_name || "Walk-in",
         items: cart.map(ci => ({ name: ci.product.name, quantity: ci.quantity, price: ci.product.selling_price })),
         subtotal: posSubtotal,
         discount: posDiscount || undefined,
