@@ -24,7 +24,11 @@ function MenuContent() {
   useEffect(() => {
     try {
       const s = localStorage.getItem("dr_last_order");
-      if (s) setLastOrder(JSON.parse(s));
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) setLastOrder(parsed[0]);
+        else if (parsed?.token) setLastOrder(parsed);
+      }
     } catch {}
   }, []);
 

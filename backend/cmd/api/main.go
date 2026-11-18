@@ -184,6 +184,7 @@ func main() {
 	})
 
 	pub.Post("/orders", publicOrderH.CreateOrder)
+	pub.Get("/orders/lookup", publicOrderH.LookupByPhone)
 	pub.Get("/orders/:token", publicOrderH.GetOrder)
 	pub.Post("/orders/:token/cancel", publicOrderH.CancelOrder)
 

@@ -131,6 +131,33 @@ func (h *PublicHandler) GetOrder(c *fiber.Ctx) error {
 	return shared.SuccessResponse(c, fiber.StatusOK, "Order retrieved", order)
 }
 
+func (h *PublicHandler) LookupByPhone(c *fiber.Ctx) error {
+	phone := c.Query("phone")
+	if phone == "" {
+		return shared.ValidationError(c, "Phone number is required", nil)
+	}
+
+	orders, err := h.orderService.GetByPhone(c.Context(), phone)
+	if err != nil || len(orders) == 0 {
+		return shared.ErrorResponse(c, fiber.StatusNotFound, "No orders found for this phone number", "NOT_FOUND")
+	}
+
+	result := make([]fiber.Map, len(orders))
+	for i, o := range orders {
+		result[i] = fiber.Map{
+			"order_number":   o.OrderNumber,
+			"access_token":   o.AccessToken,
+			"customer_name":  o.CustomerName,
+			"total_amount":   o.TotalAmount,
+			"order_status":   o.OrderStatus,
+			"payment_status": o.PaymentStatus,
+			"created_at":     o.CreatedAt,
+		}
+	}
+
+	return shared.SuccessResponse(c, fiber.StatusOK, "Orders found", result)
+}
+
 func (h *PublicHandler) CancelOrder(c *fiber.Ctx) error {
 	token := c.Params("token")
 	var req struct {

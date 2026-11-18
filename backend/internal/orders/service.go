@@ -220,6 +220,22 @@ func (s *Service) GetByAccessToken(ctx context.Context, token string) (*Order, e
 	return &order, nil
 }
 
+func (s *Service) GetByPhone(ctx context.Context, phone string) ([]Order, error) {
+	var orders []Order
+	err := s.db.SelectContext(ctx, &orders,
+		"SELECT id, order_number, source, order_type, customer_name, customer_phone, pickup_date, subtotal, discount_amount, total_amount, order_status, payment_status, notes, access_token, created_at, updated_at FROM orders WHERE customer_phone = $1 ORDER BY created_at DESC LIMIT 10", phone)
+	if err != nil {
+		return nil, err
+	}
+	for i := range orders {
+		var items []OrderItem
+		s.db.SelectContext(ctx, &items, "SELECT id, order_id, product_id, product_name, sku, quantity, unit_price, subtotal, created_at FROM order_items WHERE order_id = $1", orders[i].ID)
+		orders[i].Items = items
+		orders[i].Payment = s.fetchPayment(ctx, orders[i].ID)
+	}
+	return orders, nil
+}
+
 func (s *Service) Create(ctx context.Context, req CreateOrderRequest, userID *uuid.UUID) (*Order, error) {
 	if req.IdempotencyKey != "" {
 		var resp []byte

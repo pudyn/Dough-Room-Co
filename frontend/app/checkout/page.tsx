@@ -73,7 +73,12 @@ function CheckoutContent() {
       return data.data;
     },
     onSuccess: (order) => {
-      try { localStorage.setItem("dr_last_order", JSON.stringify({ token: order.access_token, number: order.order_number, date: new Date().toISOString() })); } catch {}
+      try {
+        const entry = { token: order.access_token, number: order.order_number, date: new Date().toISOString() };
+        const prev = JSON.parse(localStorage.getItem("dr_last_order") || "[]");
+        const list = Array.isArray(prev) ? prev : prev?.token ? [prev] : [];
+        localStorage.setItem("dr_last_order", JSON.stringify([entry, ...list].slice(0, 5)));
+      } catch {}
       clearCart();
       router.push(`/order/${order.access_token}`);
     },

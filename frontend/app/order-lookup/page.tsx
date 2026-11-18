@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { publicApi, formatIDR } from "@/lib/api";
-import { ArrowLeft, Search, Package, AlertCircle } from "lucide-react";
+import { ArrowLeft, Search, Package, AlertCircle, Clock, MessageCircle } from "lucide-react";
+
+type SavedOrder = { token: string; number: string; date: string };
+
+type PhoneOrder = { order_number: string; access_token: string; customer_name: string; total_amount: number; order_status: string; payment_status: string; created_at: string };
 
 function OrderLookupContent() {
   const router = useRouter();
@@ -11,6 +16,27 @@ function OrderLookupContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [order, setOrder] = useState<Record<string, unknown> | null>(null);
+  const [phoneOrders, setPhoneOrders] = useState<PhoneOrder[]>([]);
+  const [savedOrders, setSavedOrders] = useState<SavedOrder[]>([]);
+
+  const { data: storeData } = useQuery({
+    queryKey: ["public-store"],
+    queryFn: async () => { const { data } = await publicApi.get("/public/store"); return data.data; },
+  });
+  const whatsapp = storeData?.settings?.store_whatsapp || storeData?.settings?.store_phone || "";
+
+  useEffect(() => {
+    try {
+      const last = localStorage.getItem("dr_last_order");
+      if (last) {
+        const parsed = JSON.parse(last);
+        if (Array.isArray(parsed)) setSavedOrders(parsed);
+        else if (parsed?.token) setSavedOrders([parsed]);
+      }
+    } catch {}
+  }, []);
+
+  const isPhone = /^0[0-9]{8,13}$/.test(query.trim().replace(/[\s\-+]/g, ""));
 
   async function handleSearch() {
     const q = query.trim();
@@ -18,11 +44,23 @@ function OrderLookupContent() {
     setLoading(true);
     setError("");
     setOrder(null);
+    setPhoneOrders([]);
     try {
-      const { data } = await publicApi.get(`/public/orders/${encodeURIComponent(q)}`);
-      setOrder(data.data);
+      if (isPhone) {
+        const phone = q.replace(/[\s\-]/g, "");
+        const { data } = await publicApi.get("/public/orders/lookup", { params: { phone } });
+        const orders = data.data as PhoneOrder[];
+        if (orders && orders.length > 0) {
+          setPhoneOrders(orders);
+        } else {
+          setError("Tidak ada pesanan ditemukan untuk nomor ini.");
+        }
+      } else {
+        const { data } = await publicApi.get(`/public/orders/${encodeURIComponent(q)}`);
+        setOrder(data.data);
+      }
     } catch {
-      setError("Pesanan tidak ditemukan. Pastikan kode pesanan benar.");
+      setError(isPhone ? "Tidak ada pesanan ditemukan untuk nomor ini." : "Pesanan tidak ditemukan. Pastikan kode pesanan benar.");
     } finally {
       setLoading(false);
     }
@@ -46,12 +84,12 @@ function OrderLookupContent() {
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
         <div className="bg-white rounded-xl p-4 space-y-3">
           <p className="text-sm text-gray-600">
-            Masukkan kode pesanan yang kamu dapat setelah checkout untuk melihat status pesananmu.
+            Masukkan <strong>nomor HP</strong> atau <strong>kode pesanan</strong> untuk melihat status pesananmu.
           </p>
           <div className="flex gap-2">
             <input
               className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-300"
-              placeholder="Kode pesanan..."
+              placeholder="contoh: 081234567890"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -67,10 +105,68 @@ function OrderLookupContent() {
           </div>
         </div>
 
+        {/* Saved orders from localStorage */}
+        {savedOrders.length > 0 && !order && (
+          <div className="bg-white rounded-xl p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5"><Clock size={14} className="text-primary-500" /> Pesanan Terakhir</h3>
+            {savedOrders.map((s, i) => (
+              <button key={i} onClick={() => router.push(`/order/${s.token}`)}
+                className="w-full flex items-center justify-between p-3 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors text-left">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{s.number}</p>
+                  <p className="text-xs text-gray-500">{new Date(s.date).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+                <span className="text-primary-600 text-sm font-medium">Lihat →</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* WhatsApp fallback */}
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+          <MessageCircle size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm text-green-800 font-medium">Lupa kode pesanan?</p>
+            <p className="text-xs text-green-700 mt-0.5">Hubungi kami via WhatsApp dengan menyebutkan nama dan tanggal pesananmu.</p>
+            {whatsapp && (
+              <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent("Halo, saya ingin cek status pesanan saya. Nama: ")}`}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 mt-2 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <MessageCircle size={12} /> Chat WhatsApp
+              </a>
+            )}
+          </div>
+        </div>
+
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
             <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
             <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        {/* Phone lookup results */}
+        {phoneOrders.length > 0 && (
+          <div className="bg-white rounded-xl p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5"><Package size={14} className="text-primary-500" /> Pesanan ditemukan ({phoneOrders.length})</h3>
+            {phoneOrders.map((o) => (
+              <button key={o.order_number} onClick={() => router.push(`/order/${o.access_token}`)}
+                className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-primary-50 rounded-lg transition-colors text-left">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{o.order_number}</p>
+                  <p className="text-xs text-gray-500">{o.customer_name} · {new Date(o.created_at).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", year: "numeric" })}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    o.order_status === "COMPLETED" ? "bg-green-100 text-green-700" :
+                    o.order_status === "CANCELLED" || o.order_status === "EXPIRED" ? "bg-red-100 text-red-700" :
+                    o.order_status === "READY" ? "bg-green-100 text-green-700" :
+                    "bg-yellow-100 text-yellow-700"
+                  }`}>{o.order_status}</span>
+                  <p className="text-xs font-medium text-gray-900 mt-1">{formatIDR(o.total_amount)}</p>
+                </div>
+              </button>
+            ))}
           </div>
         )}
 
