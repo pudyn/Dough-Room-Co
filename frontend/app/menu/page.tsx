@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { publicApi, formatIDR } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
-import { ShoppingCart, Search, Plus, Minus, MapPin, Phone, Star, X, Instagram, AtSign } from "lucide-react";
+import { groupProducts, decompose, calculatePrice, getGroupQty, formatBreakdown, type ProductGroup } from "@/lib/productTiers";
+import { ShoppingCart, Search, Plus, Minus, MapPin, Star, X, Instagram, AtSign } from "lucide-react";
 import clsx from "clsx";
 import type { Product, Review } from "@/types";
 
@@ -13,10 +14,19 @@ function MenuContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const qrCode = searchParams.get("qr") ?? "";
-  const { items, addItem, updateQty } = useCart();
+  const { items, setGroupItems } = useCart();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [detail, setDetail] = useState<Product | null>(null);
+  const [detailGroup, setDetailGroup] = useState<ProductGroup | null>(null);
+  const [popupQty, setPopupQty] = useState(0);
+  const [lastOrder, setLastOrder] = useState<{ token: string; number: string; date: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("dr_last_order");
+      if (s) setLastOrder(JSON.parse(s));
+    } catch {}
+  }, []);
 
   useQuery({
     queryKey: ["qr-track", qrCode],
@@ -37,27 +47,11 @@ function MenuContent() {
 
   const settings = storeData?.settings;
 
-  const { data: categories } = useQuery({
-    queryKey: ["public-categories"],
-    queryFn: async () => {
-      const { data } = await publicApi.get("/public/menu", { params: { per_page: 100 } });
-      const products = data.data as Product[];
-      const seen = new Set<string>();
-      return products.reduce((acc: { id: string; name: string }[], p) => {
-        if (p.category_id && p.category_name && !seen.has(p.category_id)) {
-          seen.add(p.category_id);
-          acc.push({ id: p.category_id, name: p.category_name });
-        }
-        return acc;
-      }, []);
-    },
-  });
-
   const { data: products, isLoading } = useQuery({
-    queryKey: ["public-products", search, categoryId],
+    queryKey: ["public-products", categoryId],
     queryFn: async () => {
       const { data } = await publicApi.get("/public/menu", {
-        params: { search, category_id: categoryId || undefined, per_page: 100 },
+        params: { category_id: categoryId || undefined, per_page: 100 },
       });
       return data.data as Product[];
     },
@@ -71,14 +65,64 @@ function MenuContent() {
     },
   });
 
+  const categories = useMemo(() => {
+    if (!products) return [];
+    const seen = new Set<string>();
+    return products.reduce((acc: { id: string; name: string }[], p) => {
+      if (p.category_id && p.category_name && !seen.has(p.category_id)) {
+        seen.add(p.category_id);
+        acc.push({ id: p.category_id, name: p.category_name });
+      }
+      return acc;
+    }, []);
+  }, [products]);
+
+  const activeProducts = useMemo(
+    () => (products ?? []).filter((p) => p.is_active),
+    [products]
+  );
+
+  const productGroups = useMemo(
+    () => {
+      const groups = groupProducts(activeProducts).filter((g) => g.isActive);
+      if (!search.trim()) return groups;
+      const q = search.toLowerCase();
+      return groups.filter((g) => g.displayName.toLowerCase().includes(q));
+    },
+    [activeProducts, search]
+  );
+
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalAmount = items.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  function getQty(productId: string) {
-    return items.find(i => i.productId === productId)?.quantity ?? 0;
+  function openGroupDetail(group: ProductGroup) {
+    const currentQty = getGroupQty(items, group);
+    setPopupQty(currentQty || 1);
+    setDetailGroup(group);
   }
 
-  const activeProducts = (products ?? []).filter(p => p.is_active);
+  function confirmAddGroup() {
+    if (!detailGroup || popupQty <= 0) return;
+    const decomposed = decompose(detailGroup, popupQty);
+    const groupProductIds = detailGroup.tiers.map((t) => t.product.id);
+    const newItems = decomposed.map((d) => ({
+      productId: d.product.id,
+      name: d.product.name,
+      price: d.product.selling_price,
+      imageUrl: d.product.image_url ?? undefined,
+      quantity: d.qty,
+      salesModes: d.product.sales_modes ?? ["READY_STOCK"],
+    }));
+    setGroupItems(groupProductIds, newItems);
+    setDetailGroup(null);
+  }
+
+  function removeGroup() {
+    if (!detailGroup) return;
+    const groupProductIds = detailGroup.tiers.map((t) => t.product.id);
+    setGroupItems(groupProductIds, []);
+    setDetailGroup(null);
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-cream-100 via-amber-50 to-cream-50">
@@ -101,42 +145,57 @@ function MenuContent() {
                   <p className="text-primary-300 text-xs">{settings.store_address}</p>
                 </div>
               )}
-              <div className="flex items-center gap-2 mt-1.5">
-                <a
-                  href="https://instagram.com/doughroom.co"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors"
-                >
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <a href="https://instagram.com/doughroom.co" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors">
                   <Instagram size={13} /> @doughroom.co
                 </a>
                 <span className="text-primary-500">•</span>
-                <a
-                  href="https://www.threads.net/@doughroom.co"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors"
-                >
+                <a href="https://www.threads.net/@doughroom.co" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors">
                   <AtSign size={13} /> Threads
                 </a>
+                <span className="text-primary-500">•</span>
+                <button onClick={() => router.push("/review")} className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors">
+                  ⭐ Ulasan
+                </button>
+                <span className="text-primary-500">•</span>
+                <button onClick={() => router.push("/feedback")} className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors">
+                  💬 Kritik & Saran
+                </button>
+                <span className="text-primary-500">•</span>
+                <button onClick={() => router.push("/order-lookup")} className="flex items-center gap-1 text-primary-200 hover:text-white text-xs transition-colors">
+                  📦 Cek Pesanan
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Search integrated in header */}
           <div className="mt-5 relative">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-primary-400" />
             <input
               className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/95 backdrop-blur-sm border-0 shadow-lg focus:outline-none focus:ring-2 focus:ring-primary-300 text-sm placeholder-gray-400"
               placeholder="Cari menu favoritmu..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pb-32 -mt-1">
+        {/* Last order banner */}
+        {lastOrder && (
+          <button
+            onClick={() => router.push(`/order/${lastOrder.token}`)}
+            className="w-full mb-3 bg-white border border-primary-200 rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm hover:border-primary-400 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-primary-500">📦</span>
+              <span className="text-gray-600">Pesanan terakhir: <span className="font-semibold text-gray-900">{lastOrder.number}</span></span>
+            </div>
+            <span className="text-primary-600 text-xs font-semibold">Lihat Status →</span>
+          </button>
+        )}
+
         {/* Categories */}
         <div className="sticky top-0 bg-gradient-to-b from-cream-100 to-cream-100/95 backdrop-blur-md py-3 z-10">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -151,7 +210,7 @@ function MenuContent() {
             >
               🍩 Semua
             </button>
-            {(categories ?? []).map((c: { id: string; name: string }) => (
+            {categories.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setCategoryId(c.id)}
@@ -168,7 +227,7 @@ function MenuContent() {
           </div>
         </div>
 
-        {/* Products Grid */}
+        {/* Loading */}
         {isLoading && (
           <div className="text-center py-16">
             <div className="inline-flex items-center gap-2 text-primary-400">
@@ -178,49 +237,43 @@ function MenuContent() {
           </div>
         )}
 
+        {/* Product Groups Grid */}
         <div className="grid grid-cols-2 gap-3 mt-2">
-          {activeProducts.map(p => {
-            const qty = getQty(p.id);
-            const outOfStock = p.stock_tracking && p.stock_quantity <= 0;
-            const lowStock = p.stock_tracking && p.stock_quantity > 0 && p.stock_quantity <= p.low_stock_threshold;
+          {productGroups.map((group) => {
+            const qty = getGroupQty(items, group);
+            const outOfStock = group.stockTracking && group.stockQuantity <= 0;
 
             return (
               <div
-                key={p.id}
-                onClick={() => setDetail(p)}
+                key={group.key}
+                onClick={() => !outOfStock && openGroupDetail(group)}
                 className={clsx(
                   "bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100/80 transition-all cursor-pointer",
                   qty > 0 && "ring-2 ring-primary-400 shadow-md",
                   outOfStock && "opacity-50 grayscale"
                 )}
               >
-                {/* Product Image */}
                 <div className="relative aspect-square bg-gradient-to-br from-cream-100 to-cream-200 overflow-hidden">
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                  {group.imageUrl ? (
+                    <img src={group.imageUrl} alt={group.displayName} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-5xl opacity-60">🍩</span>
+                      <span className="text-5xl opacity-60">{group.isCombo ? "🎁" : "🍩"}</span>
                     </div>
                   )}
 
-                  {/* Badges */}
                   <div className="absolute top-2 left-2 flex flex-col gap-1">
-                    {p.is_recommended && (
+                    {group.isRecommended && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] bg-gradient-to-r from-orange-500 to-red-500 text-white px-2 py-0.5 rounded-full font-bold shadow">🔥 HOT</span>
                     )}
-                    {p.sales_modes?.includes("PREORDER") && !p.sales_modes?.includes("READY_STOCK") && (
-                      <span className="text-[10px] bg-purple-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">PRE-ORDER</span>
+                    {group.isCombo && (
+                      <span className="text-[10px] bg-purple-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">PAKET</span>
                     )}
                     {outOfStock && (
                       <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">HABIS</span>
                     )}
-                    {lowStock && (
-                      <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">SISA {p.stock_quantity}</span>
-                    )}
                   </div>
 
-                  {/* Qty badge */}
                   {qty > 0 && (
                     <div className="absolute top-2 right-2 bg-primary-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-lg">
                       {qty}
@@ -228,38 +281,15 @@ function MenuContent() {
                   )}
                 </div>
 
-                {/* Product Info */}
                 <div className="p-3">
-                  <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{p.name}</h3>
-                  {p.description && (
-                    <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{p.description}</p>
-                  )}
-
+                  <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{group.displayName}</h3>
                   <div className="flex items-center justify-between mt-2.5">
-                    <p className="text-primary-700 font-bold text-sm">{formatIDR(p.selling_price)}</p>
-
-                    {outOfStock ? (
-                      <span className="text-[10px] text-red-400 font-medium">Stok habis</span>
-                    ) : qty === 0 ? (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); addItem({ productId: p.id, name: p.name, price: p.selling_price, imageUrl: p.image_url ?? undefined, salesModes: p.sales_modes ?? [] }); }}
-                        className="w-8 h-8 rounded-xl bg-primary-500 hover:bg-primary-600 text-white flex items-center justify-center transition-colors shadow-sm active:scale-95"
-                      >
+                    <div>
+                      <p className="text-primary-700 font-bold text-sm">{formatIDR(group.basePrice)}<span className="text-[10px] font-normal text-gray-400 ml-0.5">@{group.isCombo ? "set" : "pcs"}</span></p>
+                    </div>
+                    {!outOfStock && (
+                      <div className="w-8 h-8 rounded-xl bg-primary-500 hover:bg-primary-600 text-white flex items-center justify-center transition-colors shadow-sm active:scale-95">
                         <Plus size={16} strokeWidth={2.5} />
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); updateQty(p.id, -1); }} className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95 transition-all">
-                          <Minus size={13} />
-                        </button>
-                        <span className="font-bold text-gray-900 w-5 text-center text-sm">{qty}</span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); if (p.stock_tracking && qty >= p.stock_quantity) return; updateQty(p.id, 1); }}
-                          disabled={p.stock_tracking && qty >= p.stock_quantity}
-                          className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center hover:bg-primary-200 text-primary-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
-                        >
-                          <Plus size={13} />
-                        </button>
                       </div>
                     )}
                   </div>
@@ -270,14 +300,14 @@ function MenuContent() {
         </div>
 
         {/* Empty state */}
-        {!isLoading && activeProducts.length === 0 && (
+        {!isLoading && productGroups.length === 0 && (
           <div className="text-center py-16 space-y-3">
             <span className="text-5xl">🔍</span>
             <p className="text-gray-400 text-sm">Tidak ada menu yang ditemukan</p>
           </div>
         )}
 
-        {/* Kata Pelanggan (reviews) */}
+        {/* Reviews */}
         {(reviews ?? []).length > 0 && (
           <div className="mt-8 space-y-3">
             <div className="flex items-center justify-between px-1">
@@ -298,96 +328,142 @@ function MenuContent() {
           </div>
         )}
 
-        {/* Review & feedback links */}
-        <div className="mt-8 flex gap-2">
-          <button
-            onClick={() => router.push("/review")}
-            className="flex-1 bg-white border border-gray-200 rounded-2xl py-3 text-sm font-medium text-gray-700 hover:border-amber-300 hover:text-amber-600 transition-colors flex items-center justify-center gap-1.5"
-          >
-            ⭐ Beri Review
-          </button>
-          <button
-            onClick={() => router.push("/feedback")}
-            className="flex-1 bg-white border border-gray-200 rounded-2xl py-3 text-sm font-medium text-gray-700 hover:border-primary-300 hover:text-primary-600 transition-colors flex items-center justify-center gap-1.5"
-          >
-            💬 Kritik & Saran
-          </button>
-        </div>
       </div>
 
-      {/* Product detail modal (popup) */}
-      {detail && (() => {
-        const dq = getQty(detail.id);
-        const dOos = detail.stock_tracking && detail.stock_quantity <= 0;
+      {/* Quantity popup */}
+      {detailGroup && (() => {
+        const price = calculatePrice(detailGroup, popupQty);
+        const breakdown = formatBreakdown(detailGroup, popupQty);
+        const currentQty = getGroupQty(items, detailGroup);
+        const unit = detailGroup.isCombo ? "set" : "pcs";
+        const totalPcs = detailGroup.isCombo ? popupQty * detailGroup.piecesPerUnit : popupQty;
+
         return (
-          <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" onClick={() => setDetail(null)}>
+          <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" onClick={() => setDetailGroup(null)}>
             <div className="absolute inset-0 bg-black/50" />
-            <div
-              className="relative bg-white w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl sm:mx-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Big image */}
-              <div className="relative aspect-square bg-gradient-to-br from-cream-100 to-cream-200 overflow-hidden rounded-t-3xl sm:rounded-t-3xl">
-                {detail.image_url ? (
-                  <img src={detail.image_url} alt={detail.name} className="w-full h-full object-cover" />
+            <div className="relative bg-white w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl sm:mx-4" onClick={(e) => e.stopPropagation()}>
+              {/* Image */}
+              <div className="relative aspect-[4/3] bg-gradient-to-br from-cream-100 to-cream-200 overflow-hidden rounded-t-3xl sm:rounded-t-3xl">
+                {detailGroup.imageUrl ? (
+                  <img src={detailGroup.imageUrl} alt={detailGroup.displayName} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-7xl opacity-60">🍩</span>
+                    <span className="text-7xl opacity-60">{detailGroup.isCombo ? "🎁" : "🍩"}</span>
                   </div>
                 )}
                 <div className="absolute top-3 left-3 flex flex-col gap-1">
-                  {detail.is_recommended && (
+                  {detailGroup.isRecommended && (
                     <span className="inline-flex items-center gap-0.5 text-[10px] bg-gradient-to-r from-orange-500 to-red-500 text-white px-2 py-0.5 rounded-full font-bold shadow">🔥 HOT</span>
                   )}
-                  {detail.sales_modes?.includes("PREORDER") && !detail.sales_modes?.includes("READY_STOCK") && (
-                    <span className="text-[10px] bg-purple-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">PRE-ORDER</span>
-                  )}
-                  {dOos && (
-                    <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">HABIS</span>
+                  {detailGroup.isCombo && (
+                    <span className="text-[10px] bg-purple-500 text-white px-2 py-0.5 rounded-full font-semibold shadow">PAKET</span>
                   )}
                 </div>
-                <button
-                  onClick={() => setDetail(null)}
-                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow text-gray-600 hover:bg-white transition-colors"
-                >
+                <button onClick={() => setDetailGroup(null)} className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow text-gray-600 hover:bg-white transition-colors">
                   <X size={18} />
                 </button>
               </div>
 
               {/* Detail */}
-              <div className="p-5 space-y-3 pb-8">
-                <h2 className="font-bold text-lg text-gray-900 leading-snug">{detail.name}</h2>
-                {detail.description && (
-                  <p className="text-sm text-gray-600 whitespace-pre-line">{detail.description}</p>
-                )}
-                <p className="text-primary-700 font-bold text-xl">{formatIDR(detail.selling_price)}</p>
+              <div className="p-5 space-y-4 pb-8">
+                <div>
+                  <h2 className="font-bold text-lg text-gray-900 leading-snug">{detailGroup.displayName}</h2>
+                  {detailGroup.description && (
+                    <p className="text-sm text-gray-600 mt-1 whitespace-pre-line">{detailGroup.description}</p>
+                  )}
+                </div>
 
-                {dOos ? (
-                  <button disabled className="w-full bg-gray-100 text-gray-400 rounded-2xl py-3.5 font-bold text-sm cursor-not-allowed">
-                    Stok Habis
-                  </button>
-                ) : dq === 0 ? (
-                  <button
-                    onClick={() => addItem({ productId: detail.id, name: detail.name, price: detail.selling_price, imageUrl: detail.image_url ?? undefined, salesModes: detail.sales_modes ?? [] })}
-                    className="w-full bg-primary-600 hover:bg-primary-700 text-white rounded-2xl py-3.5 font-bold text-sm flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all"
-                  >
-                    <Plus size={16} strokeWidth={2.5} /> Tambah ke Keranjang
-                  </button>
-                ) : (
-                  <div className="flex items-center justify-between bg-cream-50 border border-gray-100 rounded-2xl p-2">
-                    <button onClick={() => updateQty(detail.id, -1)} className="w-10 h-10 rounded-xl bg-white border flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all">
-                      <Minus size={16} />
-                    </button>
-                    <span className="font-bold text-gray-900 text-lg">{dq}</span>
-                    <button
-                      onClick={() => { if (detail.stock_tracking && dq >= detail.stock_quantity) return; updateQty(detail.id, 1); }}
-                      disabled={detail.stock_tracking && dq >= detail.stock_quantity}
-                      className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center hover:bg-primary-200 text-primary-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
-                    >
-                      <Plus size={16} />
-                    </button>
+                {/* Combo contents */}
+                {detailGroup.isCombo && (
+                  <div className="bg-purple-50 rounded-xl p-3">
+                    <p className="text-xs font-semibold text-purple-700 mb-1">Isi per set ({detailGroup.piecesPerUnit} pcs):</p>
+                    <p className="text-xs text-purple-600">
+                      {detailGroup.displayName.split(" & ").map((name, i) => (
+                        <span key={i}>{i > 0 && " + "}1 {name}</span>
+                      ))}
+                    </p>
                   </div>
                 )}
+
+                {/* Price tiers reference — only show if more than 1 tier */}
+                {detailGroup.tiers.length > 1 && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-xs font-semibold text-gray-500 mb-2">Harga:</p>
+                    <div className={clsx("grid gap-1 text-center", `grid-cols-${Math.min(detailGroup.tiers.length, 5)}`)}>
+                      {detailGroup.tiers.map((t) => (
+                        <div key={t.qty} className={clsx("rounded-lg py-1.5 px-1", popupQty === t.qty ? "bg-primary-100 ring-1 ring-primary-400" : "bg-white")}>
+                          <p className="text-[10px] text-gray-400">{t.qty} {unit}</p>
+                          <p className="text-xs font-bold text-gray-900">{formatIDR(t.product.selling_price)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quantity input */}
+                <div>
+                  <div className="flex items-center justify-center gap-4 bg-cream-50 border border-gray-100 rounded-2xl p-3">
+                    <button
+                      onClick={() => setPopupQty(Math.max(0, popupQty - 1))}
+                      className="w-12 h-12 rounded-xl bg-white border flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all text-lg font-bold"
+                    >
+                      <Minus size={18} />
+                    </button>
+                    <input
+                      type="number"
+                      min={0}
+                      value={popupQty}
+                      onChange={(e) => setPopupQty(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-20 text-center font-bold text-2xl text-gray-900 bg-transparent border-none outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button
+                      onClick={() => setPopupQty(popupQty + 1)}
+                      className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center hover:bg-primary-200 text-primary-600 active:scale-95 transition-all text-lg font-bold"
+                    >
+                      <Plus size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Price calculation */}
+                {popupQty > 0 && (
+                  <div className="bg-primary-50 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-primary-600">{popupQty} {unit} {breakdown && breakdown !== `${popupQty} ${unit}` ? `(${breakdown})` : ""}</p>
+                      <p className="text-primary-700 font-bold text-xl">{formatIDR(price)}</p>
+                    </div>
+                    <p className="text-xs text-primary-500">
+                      {formatIDR(Math.round(price / (detailGroup.isCombo ? totalPcs : popupQty)))}/{detailGroup.isCombo ? "pcs" : "pcs"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="space-y-2">
+                  {popupQty > 0 ? (
+                    <button
+                      onClick={confirmAddGroup}
+                      className="w-full bg-primary-600 hover:bg-primary-700 text-white rounded-2xl py-3.5 font-bold text-sm flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all"
+                    >
+                      {currentQty > 0 ? "Update Keranjang" : "Tambah ke Keranjang"} · {formatIDR(price)}
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="w-full bg-gray-100 text-gray-400 rounded-2xl py-3.5 font-bold text-sm cursor-not-allowed"
+                    >
+                      Pilih jumlah
+                    </button>
+                  )}
+                  {currentQty > 0 && (
+                    <button
+                      onClick={removeGroup}
+                      className="w-full text-red-500 hover:bg-red-50 rounded-2xl py-2 text-sm font-medium transition-colors"
+                    >
+                      Hapus dari Keranjang
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

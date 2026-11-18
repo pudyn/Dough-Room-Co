@@ -22,13 +22,15 @@ function CheckoutContent() {
   const [promoResult, setPromoResult] = useState<{ promo_id: string; code: string; name: string; discount: number } | null>(null);
   const [promoError, setPromoError] = useState("");
 
-  const { data: banks } = useQuery<BankAccount[]>({
-    queryKey: ["banks"],
+  const { data: storeData } = useQuery<{ bank_accounts?: BankAccount[]; settings?: Record<string, string> }>({
+    queryKey: ["public-store"],
     queryFn: async () => {
       const { data } = await publicApi.get("/public/store");
-      return data.data?.bank_accounts ?? [];
+      return data.data ?? {};
     },
   });
+  const banks = storeData?.bank_accounts ?? [];
+  const qrisImageUrl = storeData?.settings?.qris_image_url || "/qris-gopay.png";
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const discount = promoResult?.discount ?? 0;
@@ -71,6 +73,7 @@ function CheckoutContent() {
       return data.data;
     },
     onSuccess: (order) => {
+      try { localStorage.setItem("dr_last_order", JSON.stringify({ token: order.access_token, number: order.order_number, date: new Date().toISOString() })); } catch {}
       clearCart();
       router.push(`/order/${order.access_token}`);
     },
@@ -219,10 +222,10 @@ function CheckoutContent() {
         </div>
 
         {/* Bank info */}
-        {form.payment_method === "BANK_TRANSFER" && (banks ?? []).length > 0 && (
+        {form.payment_method === "BANK_TRANSFER" && banks.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
             <p className="text-sm font-semibold text-blue-900">Informasi Rekening</p>
-            {(banks ?? []).map(b => (
+            {banks.map(b => (
               <div key={b.id} className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm text-gray-900">{b.bank_name}</p>
@@ -239,8 +242,19 @@ function CheckoutContent() {
         )}
 
         {form.payment_method === "QRIS" && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <p className="text-xs text-blue-700">Setelah pesanan dibuat, <strong>gambar QR</strong> muncul di halaman pesanan — scan pakai GoPay/OVO/DANA/ShopeePay/m-banking, bayar <strong>{formatIDR(Math.max(0, total))}</strong>, lalu upload bukti bayar. Batas waktu 60 menit.</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center space-y-3">
+            <p className="text-xs text-blue-700 font-medium">Scan atau simpan QR ini, lalu bayar dengan:</p>
+            <p className="text-[11px] text-gray-500">GoPay · OVO · DANA · ShopeePay · m-banking</p>
+            <div className="inline-block bg-white rounded-2xl p-3 shadow-sm border border-blue-100">
+              <img src={qrisImageUrl} alt="QRIS Doughroom" className="w-56 max-w-full rounded-lg" />
+            </div>
+            <p className="text-primary-600 font-bold text-lg">{formatIDR(Math.max(0, total))}</p>
+            <a href={qrisImageUrl} download="QRIS-Doughroom.png"
+              className="inline-flex items-center justify-center gap-1.5 w-full bg-primary-600 hover:bg-primary-700 text-white rounded-xl py-2.5 text-sm font-bold transition-colors">
+              ⬇ Simpan Gambar QR
+            </a>
+            <p className="text-[11px] text-gray-500">Dari HP: buka aplikasi e-wallet → <strong>Scan</strong> → pilih gambar QR dari galeri</p>
+            <p className="text-[11px] text-blue-600">Setelah bayar, upload bukti di halaman pesanan. Batas waktu 60 menit.</p>
           </div>
         )}
       </div>

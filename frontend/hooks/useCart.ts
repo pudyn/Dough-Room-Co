@@ -16,6 +16,7 @@ interface CartState {
   addItem: (item: Omit<CartItem, "quantity">) => void;
   updateQty: (productId: string, delta: number) => void;
   removeItem: (productId: string) => void;
+  setGroupItems: (groupProductIds: string[], newItems: CartItem[]) => void;
   clearCart: () => void;
 }
 
@@ -42,6 +43,15 @@ export const useCart = create<CartState>((set) => ({
 
   removeItem: (productId) => {
     set((state) => ({ items: state.items.filter((i) => i.productId !== productId) }));
+  },
+
+  setGroupItems: (groupProductIds, newItems) => {
+    set((state) => ({
+      items: [
+        ...state.items.filter((i) => !groupProductIds.includes(i.productId)),
+        ...newItems,
+      ],
+    }));
   },
 
   clearCart: () => set({ items: [] }),
