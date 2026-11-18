@@ -2,7 +2,7 @@ import type { Product } from "@/types";
 
 export type ProductTier = {
   qty: number;
-  product: Product;
+  price: number;
 };
 
 export type ProductGroup = {
@@ -13,6 +13,7 @@ export type ProductGroup = {
   isCombo: boolean;
   piecesPerUnit: number;
   tiers: ProductTier[];
+  product: Product;
   isActive: boolean;
   isRecommended: boolean;
   basePrice: number;
@@ -27,139 +28,97 @@ export type CartDecomposition = {
   qty: number;
 };
 
-function parseTier(name: string): { baseName: string; tier: number } {
-  const m = name.match(/^(.+?)\s*\(x(\d+)\)\s*$/);
-  if (m) return { baseName: m[1].trim(), tier: parseInt(m[2]) };
-  return { baseName: name, tier: 1 };
+function buildTiers(product: Product): ProductTier[] {
+  const tp = product.tier_prices;
+  if (!tp || Object.keys(tp).length === 0) {
+    return [{ qty: 1, price: product.selling_price }];
+  }
+  const tiers: ProductTier[] = [];
+  for (const [k, v] of Object.entries(tp)) {
+    const q = parseInt(k);
+    if (q > 0 && v > 0) tiers.push({ qty: q, price: v });
+  }
+  tiers.sort((a, b) => a.qty - b.qty);
+  return tiers.length > 0 ? tiers : [{ qty: 1, price: product.selling_price }];
 }
 
 export function groupProducts(products: Product[]): ProductGroup[] {
-  const map = new Map<string, { tier: number; product: Product }[]>();
+  return products.map((p) => {
+    const isCombo = p.name.includes(" & ");
+    const piecesPerUnit = isCombo ? (p.name.match(/&/g) ?? []).length + 1 : 1;
+    const tiers = buildTiers(p);
 
-  for (const p of products) {
-    const { baseName, tier } = parseTier(p.name);
-    if (!map.has(baseName)) map.set(baseName, []);
-    map.get(baseName)!.push({ tier, product: p });
-  }
-
-  const groups: ProductGroup[] = [];
-
-  for (const [baseName, items] of map) {
-    const sorted = items.sort((a, b) => a.tier - b.tier);
-    const isCombo = baseName.includes("&");
-    const piecesPerUnit = isCombo ? (baseName.match(/&/g) ?? []).length + 1 : 1;
-    const base = sorted[0].product;
-
-    groups.push({
-      key: baseName,
-      displayName: baseName,
-      description: base.description,
-      imageUrl: base.image_url,
+    return {
+      key: p.id,
+      displayName: p.name,
+      description: p.description,
+      imageUrl: p.image_url,
       isCombo,
       piecesPerUnit,
-      tiers: sorted.map((s) => ({ qty: s.tier, product: s.product })),
-      isActive: sorted.some((s) => s.product.is_active),
-      isRecommended: sorted.some((s) => s.product.is_recommended),
-      basePrice: base.selling_price,
-      stockTracking: base.stock_tracking,
-      stockQuantity: Math.min(...sorted.map((s) => s.product.stock_quantity)),
-      categoryId: base.category_id,
-      categoryName: base.category_name,
-    });
-  }
-
-  return groups.sort((a, b) => {
+      tiers,
+      product: p,
+      isActive: p.is_active,
+      isRecommended: p.is_recommended,
+      basePrice: tiers[0]?.price ?? p.selling_price,
+      stockTracking: p.stock_tracking,
+      stockQuantity: p.stock_quantity,
+      categoryId: p.category_id,
+      categoryName: p.category_name,
+    };
+  }).sort((a, b) => {
     if (a.isCombo !== b.isCombo) return a.isCombo ? 1 : -1;
     if (a.piecesPerUnit !== b.piecesPerUnit) return a.piecesPerUnit - b.piecesPerUnit;
     return a.displayName.localeCompare(b.displayName);
   });
 }
 
-export function decompose(group: ProductGroup, desiredQty: number): CartDecomposition[] {
-  if (desiredQty <= 0) return [];
-
+export function calculatePrice(group: ProductGroup, desiredQty: number): number {
+  if (desiredQty <= 0) return 0;
   const tiers = group.tiers;
-  const tierQtys = tiers.map((t) => t.qty);
-  const tierPrices = tiers.map((t) => t.product.selling_price);
-  const n = desiredQty;
-
   const INF = Number.MAX_SAFE_INTEGER;
-  const dp = new Array(n + 1).fill(INF);
-  const from = new Array(n + 1).fill(-1);
+  const dp = new Array(desiredQty + 1).fill(INF);
   dp[0] = 0;
 
-  for (let i = 1; i <= n; i++) {
-    for (let t = 0; t < tierQtys.length; t++) {
-      if (tierQtys[t] <= i && dp[i - tierQtys[t]] < INF) {
-        const cost = dp[i - tierQtys[t]] + tierPrices[t];
-        if (cost < dp[i]) {
-          dp[i] = cost;
-          from[i] = t;
-        }
+  for (let i = 1; i <= desiredQty; i++) {
+    for (const t of tiers) {
+      if (t.qty <= i && dp[i - t.qty] < INF) {
+        const cost = dp[i - t.qty] + t.price;
+        if (cost < dp[i]) dp[i] = cost;
       }
     }
   }
 
-  if (dp[n] === INF) return [];
-
-  const counts = new Array(tierQtys.length).fill(0);
-  let rem = n;
-  while (rem > 0) {
-    counts[from[rem]]++;
-    rem -= tierQtys[from[rem]];
+  if (dp[desiredQty] === INF) {
+    return group.product.selling_price * desiredQty;
   }
-
-  return counts
-    .map((c: number, t: number) => ({ product: tiers[t].product, qty: c }))
-    .filter((d: CartDecomposition) => d.qty > 0);
+  return dp[desiredQty];
 }
 
-export function calculatePrice(group: ProductGroup, desiredQty: number): number {
-  return decompose(group, desiredQty).reduce(
-    (sum, d) => sum + d.product.selling_price * d.qty,
-    0
-  );
+export function decompose(group: ProductGroup, desiredQty: number): CartDecomposition[] {
+  if (desiredQty <= 0) return [];
+  return [{ product: group.product, qty: desiredQty }];
 }
 
 export function getGroupQty(
   cartItems: { productId: string; quantity: number }[],
   group: ProductGroup
 ): number {
-  const tierMap = new Map(group.tiers.map((t) => [t.product.id, t.qty]));
-  return cartItems.reduce((sum, item) => {
-    const tierQty = tierMap.get(item.productId);
-    return tierQty !== undefined ? sum + tierQty * item.quantity : sum;
-  }, 0);
+  const item = cartItems.find((i) => i.productId === group.product.id);
+  return item?.quantity ?? 0;
 }
 
 export function getGroupQtyFromCart(
   cart: { product: { id: string }; quantity: number }[],
   group: ProductGroup
 ): number {
-  const tierMap = new Map(group.tiers.map((t) => [t.product.id, t.qty]));
-  return cart.reduce((sum, ci) => {
-    const tierQty = tierMap.get(ci.product.id);
-    return tierQty !== undefined ? sum + tierQty * ci.quantity : sum;
-  }, 0);
+  const item = cart.find((ci) => ci.product.id === group.product.id);
+  return item?.quantity ?? 0;
 }
 
 export function formatBreakdown(group: ProductGroup, desiredQty: number): string {
-  const items = decompose(group, desiredQty);
-  if (items.length === 0) return "";
-  if (items.length === 1 && items[0].qty === 1) {
-    const tier = group.tiers.find((t) => t.product.id === items[0].product.id);
-    if (tier && tier.qty === desiredQty) {
-      return group.isCombo
-        ? `${desiredQty} set`
-        : `${desiredQty} pcs`;
-    }
-  }
-  const parts = items.map((d) => {
-    const tier = group.tiers.find((t) => t.product.id === d.product.id);
-    const tq = tier?.qty ?? 1;
-    return d.qty > 1 ? `${d.qty}×${group.isCombo ? `${tq}set` : `x${tq}`}` : `${group.isCombo ? `${tq}set` : `x${tq}`}`;
-  });
-  return parts.join(" + ");
+  if (desiredQty <= 0) return "";
+  const unit = group.isCombo ? "set" : "pcs";
+  return `${desiredQty} ${unit}`;
 }
 
 export function maxTierQty(group: ProductGroup): number {

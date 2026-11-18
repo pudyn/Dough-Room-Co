@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { publicApi, formatIDR } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
-import { groupProducts, decompose, calculatePrice, getGroupQty, formatBreakdown, type ProductGroup } from "@/lib/productTiers";
+import { groupProducts, calculatePrice, getGroupQty, formatBreakdown, type ProductGroup } from "@/lib/productTiers";
 import { ShoppingCart, Search, Plus, Minus, MapPin, Star, X, Instagram, AtSign } from "lucide-react";
 import clsx from "clsx";
 import type { Product, Review } from "@/types";
@@ -107,24 +107,25 @@ function MenuContent() {
 
   function confirmAddGroup() {
     if (!detailGroup || popupQty <= 0) return;
-    const decomposed = decompose(detailGroup, popupQty);
-    const groupProductIds = detailGroup.tiers.map((t) => t.product.id);
-    const newItems = decomposed.map((d) => ({
-      productId: d.product.id,
-      name: d.product.name,
-      price: d.product.selling_price,
-      imageUrl: d.product.image_url ?? undefined,
-      quantity: d.qty,
-      salesModes: d.product.sales_modes ?? ["READY_STOCK"],
-    }));
+    const p = detailGroup.product;
+    const totalPrice = calculatePrice(detailGroup, popupQty);
+    const effectiveUnitPrice = Math.round(totalPrice / popupQty);
+    const groupProductIds = [p.id];
+    const newItems = [{
+      productId: p.id,
+      name: p.name,
+      price: effectiveUnitPrice,
+      imageUrl: p.image_url ?? undefined,
+      quantity: popupQty,
+      salesModes: p.sales_modes ?? ["READY_STOCK"],
+    }];
     setGroupItems(groupProductIds, newItems);
     setDetailGroup(null);
   }
 
   function removeGroup() {
     if (!detailGroup) return;
-    const groupProductIds = detailGroup.tiers.map((t) => t.product.id);
-    setGroupItems(groupProductIds, []);
+    setGroupItems([detailGroup.product.id], []);
     setDetailGroup(null);
   }
 
@@ -393,11 +394,11 @@ function MenuContent() {
                 {detailGroup.tiers.length > 1 && (
                   <div className="bg-gray-50 rounded-xl p-3">
                     <p className="text-xs font-semibold text-gray-500 mb-2">Harga:</p>
-                    <div className={clsx("grid gap-1 text-center", `grid-cols-${Math.min(detailGroup.tiers.length, 5)}`)}>
+                    <div className="flex flex-wrap gap-1 justify-center">
                       {detailGroup.tiers.map((t) => (
-                        <div key={t.qty} className={clsx("rounded-lg py-1.5 px-1", popupQty === t.qty ? "bg-primary-100 ring-1 ring-primary-400" : "bg-white")}>
+                        <div key={t.qty} className={clsx("rounded-lg py-1.5 px-2 min-w-[60px] text-center", popupQty === t.qty ? "bg-primary-100 ring-1 ring-primary-400" : "bg-white")}>
                           <p className="text-[10px] text-gray-400">{t.qty} {unit}</p>
-                          <p className="text-xs font-bold text-gray-900">{formatIDR(t.product.selling_price)}</p>
+                          <p className="text-xs font-bold text-gray-900">{formatIDR(t.price)}</p>
                         </div>
                       ))}
                     </div>

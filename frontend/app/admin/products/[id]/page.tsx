@@ -25,6 +25,8 @@ export default function ProductFormPage() {
     sales_modes: ["READY_STOCK"] as string[],
     initial_stock: "0",
   });
+  const [tierCount, setTierCount] = useState(8);
+  const [tierPrices, setTierPrices] = useState<Record<string, string>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
 
@@ -61,18 +63,33 @@ export default function ProductFormPage() {
         initial_stock: "0",
       });
       if (product.image_url) setImagePreview(product.image_url);
+      if (product.tier_prices && typeof product.tier_prices === "object") {
+        const tp: Record<string, string> = {};
+        for (const [k, v] of Object.entries(product.tier_prices)) {
+          tp[k] = String(v);
+        }
+        setTierPrices(tp);
+        const maxKey = Math.max(...Object.keys(product.tier_prices).map(Number).filter(n => n > 0), 8);
+        setTierCount(maxKey);
+      }
     }
   }, [product]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const { initial_stock, ...rest } = form;
+      const tp: Record<string, number> = {};
+      for (const [k, v] of Object.entries(tierPrices)) {
+        const val = parseInt(v, 10);
+        if (val > 0) tp[k] = val;
+      }
       const payload: Record<string, unknown> = {
         ...rest,
         selling_price: parseInt(form.selling_price, 10),
         cost_price: form.cost_price ? parseInt(form.cost_price, 10) : undefined,
         low_stock_threshold: parseInt(form.low_stock_threshold, 10),
         stock_quantity: parseInt(initial_stock, 10),
+        tier_prices: tp,
       };
       if (isNew) {
         const { data } = await api.post("/products", payload);
@@ -180,6 +197,43 @@ export default function ProductFormPage() {
               <label className="label">Deskripsi</label>
               <textarea className="input min-h-20 resize-none" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
+          </div>
+        </div>
+
+        {/* Tier Prices */}
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Harga per Jumlah (Tier Prices)</h2>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Jumlah tier:</label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                className="input w-16 text-center text-sm py-1"
+                value={tierCount}
+                onChange={e => setTierCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">Isi harga untuk setiap jumlah pembelian. Kosongkan jika tidak ada tier khusus.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Array.from({ length: tierCount }, (_, i) => i + 1).map(qty => (
+              <div key={qty}>
+                <label className="label text-xs">{qty} pcs</label>
+                <input
+                  className="input text-sm"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={tierPrices[String(qty)] ?? ""}
+                  onChange={e => setTierPrices(prev => ({ ...prev, [String(qty)]: e.target.value }))}
+                />
+                {tierPrices[String(qty)] && parseInt(tierPrices[String(qty)]) > 0 && (
+                  <p className="text-[10px] text-gray-400 mt-0.5">{formatIDR(parseInt(tierPrices[String(qty)]))} ({formatIDR(Math.round(parseInt(tierPrices[String(qty)]) / qty))}/pcs)</p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 

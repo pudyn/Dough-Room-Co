@@ -43,6 +43,7 @@ type UpdateProductRequest struct {
 	LowStockThreshold int      `json:"low_stock_threshold"`
 	IsActive         *bool      `json:"is_active"`
 	SalesModes       []string   `json:"sales_modes"`
+	TierPrices       TierPrices `json:"tier_prices"`
 }
 
 func (h *Handler) List(c *fiber.Ctx) error {

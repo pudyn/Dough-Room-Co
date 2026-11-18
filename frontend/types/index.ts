@@ -28,6 +28,7 @@ export interface Product {
   low_stock_threshold: number;
   is_active: boolean;
   is_recommended: boolean;
+  tier_prices: Record<string, number>;
   sales_modes: string[];
   reserved_quantity?: number;
   created_at: string;

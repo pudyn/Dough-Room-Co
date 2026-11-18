@@ -6,7 +6,7 @@ import { api, formatIDR } from "@/lib/api";
 import { printReceipt } from "@/lib/printer";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { groupProducts, decompose, calculatePrice, getGroupQtyFromCart, formatBreakdown, type ProductGroup } from "@/lib/productTiers";
+import { groupProducts, calculatePrice, getGroupQtyFromCart, formatBreakdown, type ProductGroup } from "@/lib/productTiers";
 import { Search, Plus, Minus, Trash2, ShoppingCart, LogIn, LogOut as LogOutIcon, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Product } from "@/types";
@@ -119,7 +119,7 @@ export default function POSPage() {
         createdAt: order?.created_at ?? new Date().toISOString(),
         cashierName: user?.name,
         customerName: customerName.trim() || order?.customer_name || "Walk-in",
-        items: cart.map(ci => ({ name: ci.product.name, quantity: ci.quantity, price: ci.product.selling_price })),
+        items: cart.map(ci => { const g = productGroups.find(g => g.product.id === ci.product.id); const tp = g ? calculatePrice(g, ci.quantity) : ci.product.selling_price * ci.quantity; return { name: ci.product.name, quantity: ci.quantity, price: Math.round(tp / ci.quantity) }; }),
         subtotal: posSubtotal,
         discount: posDiscount || undefined,
         promoCode: posPromoResult?.code,
@@ -151,24 +151,24 @@ export default function POSPage() {
 
   function confirmGroupToCart() {
     if (!detailGroup || popupQty <= 0) return;
-    const decomposed = decompose(detailGroup, popupQty);
-    const groupProductIds = new Set(detailGroup.tiers.map(t => t.product.id));
+    const pid = detailGroup.product.id;
     setCart(prev => {
-      const filtered = prev.filter(ci => !groupProductIds.has(ci.product.id));
-      const newItems = decomposed.map(d => ({ product: d.product, quantity: d.qty }));
-      return [...filtered, ...newItems];
+      const filtered = prev.filter(ci => ci.product.id !== pid);
+      return [...filtered, { product: detailGroup.product, quantity: popupQty }];
     });
     setDetailGroup(null);
   }
 
   function removeGroupFromCart() {
     if (!detailGroup) return;
-    const groupProductIds = new Set(detailGroup.tiers.map(t => t.product.id));
-    setCart(prev => prev.filter(ci => !groupProductIds.has(ci.product.id)));
+    setCart(prev => prev.filter(ci => ci.product.id !== detailGroup.product.id));
     setDetailGroup(null);
   }
 
-  const posSubtotal = cart.reduce((sum, ci) => sum + ci.product.selling_price * ci.quantity, 0);
+  const posSubtotal = cart.reduce((sum, ci) => {
+    const group = productGroups.find(g => g.product.id === ci.product.id);
+    return sum + (group ? calculatePrice(group, ci.quantity) : ci.product.selling_price * ci.quantity);
+  }, 0);
   const posDiscount = posPromoResult?.discount ?? 0;
   const total = posSubtotal - posDiscount;
   const change = paymentMethod === "CASH" ? parseInt(cashReceived || "0") - total : 0;
@@ -283,10 +283,10 @@ export default function POSPage() {
             <div key={ci.product.id} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm text-gray-900 truncate">{ci.product.name}</p>
-                <p className="text-xs text-gray-500">{formatIDR(ci.product.selling_price)} × {ci.quantity}</p>
+                <p className="text-xs text-gray-500">{formatIDR((() => { const g = productGroups.find(g => g.product.id === ci.product.id); return g ? calculatePrice(g, ci.quantity) : ci.product.selling_price * ci.quantity; })() / ci.quantity)} × {ci.quantity}</p>
               </div>
               <div className="flex items-center gap-1">
-                <span className="w-8 text-center text-sm font-medium">{formatIDR(ci.product.selling_price * ci.quantity)}</span>
+                <span className="w-8 text-center text-sm font-medium">{formatIDR((() => { const g = productGroups.find(g => g.product.id === ci.product.id); return g ? calculatePrice(g, ci.quantity) : ci.product.selling_price * ci.quantity; })())}</span>
                 <button onClick={() => setCart(c => c.filter(x => x.product.id !== ci.product.id))} className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:bg-red-50 ml-1"><Trash2 size={12} /></button>
               </div>
             </div>
@@ -399,7 +399,7 @@ export default function POSPage() {
                     <button key={t.qty} onClick={() => setPopupQty(t.qty)}
                       className={clsx("flex-1 min-w-0 rounded-lg py-2 px-1 text-center border transition-colors", popupQty === t.qty ? "bg-primary-50 border-primary-400" : "border-gray-100 hover:border-gray-200")}>
                       <p className="text-[10px] text-gray-400">{t.qty} {unit}</p>
-                      <p className="text-xs font-bold text-gray-900">{formatIDR(t.product.selling_price)}</p>
+                      <p className="text-xs font-bold text-gray-900">{formatIDR(t.price)}</p>
                     </button>
                   ))}
                 </div>

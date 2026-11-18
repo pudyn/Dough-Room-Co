@@ -3,8 +3,12 @@ package orders
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +16,69 @@ import (
 
 	"github.com/donutshop/backend/internal/shared"
 )
+
+// calculateTierPrice uses DP to find the cheapest way to buy `qty` items
+// given a tier_prices map (e.g. {"1":10000,"2":19000,"4":36000}).
+// Falls back to sellingPrice * qty when tier_prices is empty.
+func calculateTierPrice(tierPricesJSON []byte, qty int, sellingPrice int64) int64 {
+	if qty <= 0 {
+		return 0
+	}
+
+	var tiers map[string]int64
+	if len(tierPricesJSON) > 0 {
+		json.Unmarshal(tierPricesJSON, &tiers)
+	}
+	if len(tiers) == 0 {
+		return sellingPrice * int64(qty)
+	}
+
+	type tier struct {
+		qty   int
+		price int64
+	}
+	var ts []tier
+	for k, v := range tiers {
+		q, err := strconv.Atoi(k)
+		if err != nil || q <= 0 {
+			continue
+		}
+		ts = append(ts, tier{qty: q, price: v})
+	}
+	sort.Slice(ts, func(i, j int) bool { return ts[i].qty < ts[j].qty })
+
+	if len(ts) == 0 {
+		return sellingPrice * int64(qty)
+	}
+
+	dp := make([]int64, qty+1)
+	for i := 1; i <= qty; i++ {
+		dp[i] = math.MaxInt64
+	}
+
+	for i := 1; i <= qty; i++ {
+		for _, t := range ts {
+			if t.qty <= i && dp[i-t.qty] != math.MaxInt64 {
+				cost := dp[i-t.qty] + t.price
+				if cost < dp[i] {
+					dp[i] = cost
+				}
+			}
+		}
+		// also try unit price for remainder
+		if dp[i-1] != math.MaxInt64 {
+			cost := dp[i-1] + sellingPrice
+			if cost < dp[i] {
+				dp[i] = cost
+			}
+		}
+	}
+
+	if dp[qty] == math.MaxInt64 {
+		return sellingPrice * int64(qty)
+	}
+	return dp[qty]
+}
 
 type Service struct {
 	db *sqlx.DB
@@ -257,14 +324,15 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, userID *uu
 
 	var subtotal int64
 	type productInfo struct {
-		ID            uuid.UUID `db:"id"`
-		Name          string    `db:"name"`
-		SKU           string    `db:"sku"`
-		SellingPrice  int64     `db:"selling_price"`
-		CostPrice     int64     `db:"cost_price"`
-		StockTracking bool      `db:"stock_tracking"`
-		StockQuantity int       `db:"stock_quantity"`
-		IsActive      bool      `db:"is_active"`
+		ID             uuid.UUID `db:"id"`
+		Name           string    `db:"name"`
+		SKU            string    `db:"sku"`
+		SellingPrice   int64     `db:"selling_price"`
+		CostPrice      int64     `db:"cost_price"`
+		StockTracking  bool      `db:"stock_tracking"`
+		StockQuantity  int       `db:"stock_quantity"`
+		IsActive       bool      `db:"is_active"`
+		TierPricesJSON []byte    `db:"tier_prices"`
 	}
 
 	type itemData struct {
@@ -275,7 +343,7 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, userID *uu
 	var itemsData []itemData
 	for _, item := range req.Items {
 		var prod productInfo
-		err := tx.GetContext(ctx, &prod, "SELECT id, name, sku, selling_price, cost_price, stock_tracking, stock_quantity, is_active FROM products WHERE id = $1 FOR UPDATE", item.ProductID)
+		err := tx.GetContext(ctx, &prod, "SELECT id, name, sku, selling_price, cost_price, stock_tracking, stock_quantity, is_active, tier_prices FROM products WHERE id = $1 FOR UPDATE", item.ProductID)
 		if err != nil {
 			return nil, fmt.Errorf("product %s not found", item.ProductID)
 		}
@@ -292,7 +360,7 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, userID *uu
 			}
 		}
 
-		subtotal += prod.SellingPrice * int64(item.Quantity)
+		subtotal += calculateTierPrice(prod.TierPricesJSON, item.Quantity, prod.SellingPrice)
 		itemsData = append(itemsData, itemData{Product: prod, Quantity: item.Quantity})
 	}
 
@@ -389,10 +457,11 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, userID *uu
 	}
 
 	for _, item := range itemsData {
-		itemSubtotal := item.Product.SellingPrice * int64(item.Quantity)
+		itemSubtotal := calculateTierPrice(item.Product.TierPricesJSON, item.Quantity, item.Product.SellingPrice)
+		unitPrice := itemSubtotal / int64(item.Quantity)
 		_, err := tx.ExecContext(ctx,
 			"INSERT INTO order_items (order_id, product_id, product_name, sku, quantity, unit_price, cost_price, subtotal) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-			orderID, item.Product.ID, item.Product.Name, item.Product.SKU, item.Quantity, item.Product.SellingPrice, item.Product.CostPrice, itemSubtotal)
+			orderID, item.Product.ID, item.Product.Name, item.Product.SKU, item.Quantity, unitPrice, item.Product.CostPrice, itemSubtotal)
 		if err != nil {
 			return nil, err
 		}

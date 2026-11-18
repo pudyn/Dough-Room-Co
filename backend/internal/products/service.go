@@ -2,6 +2,8 @@ package products
 
 import (
 	"context"
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,6 +13,27 @@ import (
 
 	"github.com/donutshop/backend/internal/shared"
 )
+
+type TierPrices map[string]int64
+
+func (t *TierPrices) Scan(src interface{}) error {
+	if src == nil {
+		*t = TierPrices{}
+		return nil
+	}
+	b, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("TierPrices.Scan: expected []byte, got %T", src)
+	}
+	return json.Unmarshal(b, t)
+}
+
+func (t TierPrices) Value() (driver.Value, error) {
+	if t == nil {
+		return []byte("{}"), nil
+	}
+	return json.Marshal(t)
+}
 
 type Service struct {
 	db *sqlx.DB
@@ -33,15 +56,16 @@ type Product struct {
 	StockTracking    bool       `json:"stock_tracking" db:"stock_tracking"`
 	StockQuantity    int        `json:"stock_quantity" db:"stock_quantity"`
 	LowStockThreshold int      `json:"low_stock_threshold" db:"low_stock_threshold"`
-	IsActive         bool       `json:"is_active" db:"is_active"`
-	IsRecommended    bool       `json:"is_recommended" db:"is_recommended"`
-	SalesModes       []string   `json:"sales_modes"`
+	IsActive         bool              `json:"is_active" db:"is_active"`
+	IsRecommended    bool              `json:"is_recommended" db:"is_recommended"`
+	TierPrices       TierPrices        `json:"tier_prices" db:"tier_prices"`
+	SalesModes       []string          `json:"sales_modes"`
 	CreatedAt        string     `json:"created_at" db:"created_at"`
 	UpdatedAt        string     `json:"updated_at" db:"updated_at"`
 }
 
 func (s *Service) List(ctx context.Context, p shared.PaginationParams, categoryID, search string) ([]Product, int64, error) {
-	query := "SELECT p.id, p.category_id, c.name as category_name, p.sku, p.name, p.description, p.image_url, p.selling_price, p.cost_price, p.stock_tracking, p.stock_quantity, p.low_stock_threshold, p.is_active, p.is_recommended, p.created_at, p.updated_at FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE 1=1"
+	query := "SELECT p.id, p.category_id, c.name as category_name, p.sku, p.name, p.description, p.image_url, p.selling_price, p.cost_price, p.stock_tracking, p.stock_quantity, p.low_stock_threshold, p.is_active, p.is_recommended, p.tier_prices, p.created_at, p.updated_at FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE 1=1"
 	countQuery := "SELECT COUNT(*) FROM products p WHERE 1=1"
 	args := []interface{}{}
 	argIdx := 1
@@ -83,7 +107,7 @@ func (s *Service) List(ctx context.Context, p shared.PaginationParams, categoryI
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Product, error) {
 	var product Product
 	err := s.db.GetContext(ctx, &product,
-		"SELECT p.id, p.category_id, c.name as category_name, p.sku, p.name, p.description, p.image_url, p.selling_price, p.cost_price, p.stock_tracking, p.stock_quantity, p.low_stock_threshold, p.is_active, p.is_recommended, p.created_at, p.updated_at FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = $1", id)
+		"SELECT p.id, p.category_id, c.name as category_name, p.sku, p.name, p.description, p.image_url, p.selling_price, p.cost_price, p.stock_tracking, p.stock_quantity, p.low_stock_threshold, p.is_active, p.is_recommended, p.tier_prices, p.created_at, p.updated_at FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -218,12 +242,17 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductReq
 		sku = s.generateSKU(ctx, req.Name, &id)
 	}
 
+	tierPrices := req.TierPrices
+	if tierPrices == nil {
+		tierPrices = TierPrices{}
+	}
+
 	_, err = tx.ExecContext(ctx,
 		`UPDATE products SET category_id=$1, sku=$2, name=$3, description=$4,
 		 image_url = COALESCE(NULLIF($5, ''), image_url),
-		 selling_price=$6, cost_price=$7, stock_tracking=$8, low_stock_threshold=$9, is_active=$10, updated_at=NOW() WHERE id=$11`,
+		 selling_price=$6, cost_price=$7, stock_tracking=$8, low_stock_threshold=$9, is_active=$10, tier_prices=$11, updated_at=NOW() WHERE id=$12`,
 		req.CategoryID, sku, req.Name, req.Description, req.ImageURL,
-		req.SellingPrice, req.CostPrice, req.StockTracking, req.LowStockThreshold, isActive, id)
+		req.SellingPrice, req.CostPrice, req.StockTracking, req.LowStockThreshold, isActive, tierPrices, id)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +306,7 @@ func (s *Service) Deactivate(ctx context.Context, id uuid.UUID) error {
 func (s *Service) ListPublicProducts(ctx context.Context, p shared.PaginationParams, mode, categoryID string) ([]Product, int64, error) {
 	// Catatan: cost_price (harga modal) sengaja TIDAK diambil di query publik ini
 	// supaya tidak pernah bocor ke pelanggan.
-	query := `SELECT p.id, p.category_id, c.name as category_name, p.sku, p.name, p.description, p.image_url, p.selling_price, p.stock_quantity, p.stock_tracking, p.is_active, p.is_recommended, p.low_stock_threshold, p.created_at, p.updated_at
+	query := `SELECT p.id, p.category_id, c.name as category_name, p.sku, p.name, p.description, p.image_url, p.selling_price, p.stock_quantity, p.stock_tracking, p.is_active, p.is_recommended, p.low_stock_threshold, p.tier_prices, p.created_at, p.updated_at
 	          FROM products p LEFT JOIN categories c ON p.category_id = c.id
 	          WHERE p.is_active = TRUE`
 	countQuery := "SELECT COUNT(*) FROM products p WHERE p.is_active = TRUE"
